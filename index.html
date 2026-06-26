@@ -190,7 +190,7 @@
         <h1 id="title">Gismeteo Precipitation</h1>
         <div class="actions">
           <a class="button button-tampermonkey" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">Установить Tampermonkey</a>
-          <a class="button button-script" href="https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js" target="_blank" rel="noopener">Установить Gismeteo Precipitation</a>
+          <a id="installScript" class="button button-script" href="https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js" target="_blank">Установить Gismeteo Precipitation</a>
         </div>
       </div>
     </section>
@@ -205,7 +205,50 @@
       </ol>
     </section>
 
-    <footer>Version 1.4 · Creator: HARIBB</footer>
+    <footer>Version 1.4 · Creator · HARIBB</footer>
   </main>
+  <script>
+    const installScript = document.getElementById('installScript');
+
+    installScript.addEventListener('click', event => {
+      event.preventDefault();
+
+      const installWindow = window.open('', '_blank');
+
+      if (!installWindow) {
+        window.location.href = installScript.href;
+        return;
+      }
+
+      installWindow.location.href = installScript.href;
+
+      const stopInstallWindow = () => {
+        try {
+          if (!installWindow.closed) {
+            installWindow.stop();
+            installWindow.focus();
+          }
+        } catch (error) {
+          // Cross-origin browser restrictions can block direct tab control.
+        }
+      };
+
+      stopInstallWindow();
+      [50, 100, 180, 300, 500, 800, 1200, 1800, 2600].forEach(delay => {
+        setTimeout(stopInstallWindow, delay);
+      });
+
+      setTimeout(() => {
+        try {
+          if (!installWindow.closed) {
+            installWindow.stop();
+            installWindow.location.replace('about:blank');
+          }
+        } catch (error) {
+          stopInstallWindow();
+        }
+      }, 3800);
+    });
+  </script>
 </body>
 </html>

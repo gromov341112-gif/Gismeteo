@@ -3,7 +3,7 @@
 // @namespace    gismeteo-excel
 // @version      1.4
 // @description  Export Gismeteo 10-day precipitation forecasts to a styled Excel report with daily charts and a filtered heavy-rain list.
-// @author       Creator: HARIBB
+// @author       HARIBB
 // @match        https://www.gismeteo.ru/*
 // @grant        none
 // @icon         https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/assets/icon.svg
