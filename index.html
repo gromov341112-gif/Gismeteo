@@ -137,6 +137,16 @@
       line-height: 1.5;
     }
 
+    code {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(2, 6, 23, .7);
+      color: #e5e7eb;
+      border: 1px solid var(--line);
+      user-select: all;
+    }
+
     .steps a {
       color: #93c5fd;
       text-decoration: none;
@@ -174,7 +184,7 @@
         <h1 id="title">Gismeteo Precipitation</h1>
         <div class="actions">
           <a class="button button-tampermonkey" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">Установить Tampermonkey</a>
-          <a class="button button-script" href="https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js" target="_blank" rel="noopener">Установить Gismeteo Precipitation</a>
+          <a id="installScript" class="button button-script" href="https://www.tampermonkey.net/script_installation.php#url=https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js" target="_blank">Установить Gismeteo Precipitation</a>
         </div>
       </div>
     </section>
@@ -183,14 +193,36 @@
       <h2 id="steps-title">Установка</h2>
       <ol>
         <li>Установите Tampermonkey из Chrome Web Store.</li>
-        <li>Откройте <a href="chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo">chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo</a> и включите пользовательские скрипты.</li>
+        <li>Скопируйте <code>chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo</code>, вставьте в адресную строку Chrome и включите пользовательские скрипты.</li>
         <li>Нажмите <strong>Установить Gismeteo Precipitation</strong> и подтвердите установку скрипта в Tampermonkey.</li>
         <li>Откройте Gismeteo, вставьте список городов и нажмите <strong>Собрать</strong>.</li>
       </ol>
-      <p class="note">Если страница установки Tampermonkey долго загружается, остановите загрузку вкладки. После этого Tampermonkey обычно показывает окно подтверждения установки скрипта.</p>
+      <p class="note">При установке откроется вкладка Tampermonkey. Страница автоматически остановит её загрузку, после чего появится окно установки скрипта.</p>
     </section>
 
     <footer>Version 1.2 · Author HARIBB</footer>
   </main>
+  <script>
+    const installScript = document.getElementById('installScript');
+
+    installScript.addEventListener('click', event => {
+      event.preventDefault();
+
+      const installWindow = window.open(installScript.href, '_blank');
+
+      if (!installWindow) {
+        window.location.href = installScript.href;
+        return;
+      }
+
+      setTimeout(() => {
+        try {
+          installWindow.stop();
+        } catch (error) {
+          // Browser security may block stopping a cross-origin tab.
+        }
+      }, 2000);
+    });
+  </script>
 </body>
 </html>

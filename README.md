@@ -19,7 +19,7 @@ The page contains two installation buttons:
 Installation steps:
 
 1. Install Tampermonkey from Chrome Web Store.
-2. Open:
+2. Copy this address, paste it into Chrome's address bar, and press Enter:
 
 `chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo`
 
@@ -27,8 +27,9 @@ Installation steps:
 4. Return to the installer page and click **Установить Gismeteo Precipitation**.
 5. Confirm script installation in Tampermonkey.
 
-If Tampermonkey's script installation page loads for too long, stop loading the
-tab. Tampermonkey usually shows the script installation confirmation after that.
+The installer page opens the Tampermonkey installation tab and automatically
+stops its loading after a short delay so that Tampermonkey can show the script
+installation confirmation.
 
 Direct userscript URL:
 
