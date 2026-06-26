@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Gismeteo Precipitation
-// @namespace    gismeteo-excel
-// @version      1.3
+// @name         Gismeteo Precipitation Dev
+// @namespace    gismeteo-excel-dev
+// @version      1.3-dev
 // @description  Export Gismeteo 10-day precipitation forecasts to a styled Excel report with daily charts and a filtered heavy-rain list.
 // @author       Creator: HARIBB
 // @match        https://www.gismeteo.ru/*
@@ -9,8 +9,6 @@
 // @icon         https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/assets/icon.svg
 // @homepageURL  https://gromov341112-gif.github.io/Gismeteo/
 // @supportURL   https://github.com/gromov341112-gif/Gismeteo/issues
-// @downloadURL  https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js
-// @updateURL    https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js
 // @require      https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js
 // @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
 // @require      https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js

@@ -199,13 +199,13 @@
       <h2 id="steps-title">Инструкция</h2>
       <ol>
         <li>Установите <strong class="mark">Tampermonkey</strong>.</li>
-        <li>Скопируйте <code>chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo</code>, вставьте в адресную строку Chrome и включите пользовательские скрипты.</li>
+        <li>Скопируйте <code>chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo</code>, вставьте в адресную строку Chrome/Yandex и включите пользовательские скрипты.</li>
         <li>Установите <strong class="mark">Gismeteo Precipitation</strong> и подтвердите установку скрипта в Tampermonkey.</li>
         <li>Откройте Gismeteo, вставьте список городов и нажмите <strong class="mark">Собрать</strong>.</li>
       </ol>
     </section>
 
-    <footer>Version 1.3 · Author HARIBB</footer>
+    <footer>Version 1.3 · Creator: HARIBB</footer>
   </main>
   <script>
     const installScript = document.getElementById('installScript');
@@ -220,10 +220,32 @@
         return;
       }
 
-      [2000, 2500, 3000, 4000].forEach(delay => {
+      let attempts = 0;
+      const stopper = setInterval(() => {
+        attempts += 1;
+
+        try {
+          if (installWindow.closed) {
+            clearInterval(stopper);
+            return;
+          }
+
+          installWindow.stop();
+          installWindow.focus();
+        } catch (error) {
+          // Browser security may block stopping a cross-origin tab.
+        }
+
+        if (attempts >= 18) {
+          clearInterval(stopper);
+        }
+      }, 500);
+
+      [1600, 2200, 3000, 4500, 6500, 9000].forEach(delay => {
         setTimeout(() => {
           try {
             installWindow.stop();
+            installWindow.focus();
           } catch (error) {
             // Browser security may block stopping a cross-origin tab.
           }
