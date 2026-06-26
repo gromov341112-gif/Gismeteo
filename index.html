@@ -128,23 +128,29 @@
       line-height: 1.6;
     }
 
-    code,
-    .mark {
+    code {
       display: inline-block;
       padding: 2px 7px;
       border-radius: 6px;
       background: rgba(2, 6, 23, .7);
       border: 1px solid var(--line);
-    }
-
-    code {
       color: #e5e7eb;
       user-select: all;
     }
 
     .mark {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 1px 8px;
+      border-radius: 6px;
+      background: rgba(2, 6, 23, .7);
+      border: 1px solid var(--line);
       color: #f87171;
+      font-size: 14px;
       font-weight: 700;
+      line-height: 1;
+      vertical-align: baseline;
     }
 
     .steps a {
@@ -195,7 +201,7 @@
         <li>Установите <strong class="mark">Tampermonkey</strong>.</li>
         <li>Скопируйте <code>chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo</code>, вставьте в адресную строку Chrome и включите пользовательские скрипты.</li>
         <li>Нажмите <strong class="mark">Установить Gismeteo Precipitation</strong> и <strong class="mark">подтвердите установку скрипта в Tampermonkey</strong>.</li>
-        <li>Откройте Gismeteo, вставьте список городов и нажмите <strong>Собрать</strong>.</li>
+        <li>Откройте Gismeteo, вставьте список городов и нажмите <strong class="mark">Собрать</strong>.</li>
       </ol>
     </section>
 
