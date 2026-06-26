@@ -57,4 +57,3 @@ through Tampermonkey's standard update mechanism.
 - `gismeteo-excel.user.js` - Tampermonkey userscript.
 - `index.html` - GitHub Pages installer page.
 - `assets/icon.svg` - project and userscript icon.
-- `.agents/AGENTS.md` - current project state for Codex/agent handoff.
