@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gismeteo Precipitation
 // @namespace    gismeteo-excel
-// @version      1.3
+// @version      1.4
 // @description  Export Gismeteo 10-day precipitation forecasts to a styled Excel report with daily charts and a filtered heavy-rain list.
 // @author       Creator: HARIBB
 // @match        https://www.gismeteo.ru/*
@@ -33,17 +33,14 @@
     const style = document.createElement('style');
     style.textContent = `
       #gmRun {
-        transition: transform .16s ease, background-color .16s ease, box-shadow .16s ease;
-        box-shadow: 0 6px 14px rgba(22, 163, 74, .24);
+        transition: transform .16s ease, background-color .16s ease;
       }
       #gmRun:hover {
         background: #22c55e !important;
         transform: translateY(-1px);
-        box-shadow: 0 9px 20px rgba(34, 197, 94, .32);
       }
       #gmRun:active {
         transform: translateY(0) scale(.97);
-        box-shadow: 0 4px 10px rgba(22, 163, 74, .24);
       }
     `;
     document.head.appendChild(style);
