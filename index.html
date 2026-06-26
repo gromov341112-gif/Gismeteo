@@ -130,6 +130,13 @@
       line-height: 1.6;
     }
 
+    .note {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
     .steps a {
       color: #93c5fd;
       text-decoration: none;
@@ -167,7 +174,7 @@
         <h1 id="title">Gismeteo Precipitation</h1>
         <div class="actions">
           <a class="button button-tampermonkey" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">Установить Tampermonkey</a>
-          <a class="button button-script" href="https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js">Установить Gismeteo Precipitation</a>
+          <a class="button button-script" href="https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js" target="_blank" rel="noopener">Установить Gismeteo Precipitation</a>
         </div>
       </div>
     </section>
@@ -175,11 +182,12 @@
     <section class="steps" aria-labelledby="steps-title">
       <h2 id="steps-title">Установка</h2>
       <ol>
-        <li>Нажмите <strong>Установить Tampermonkey</strong> и установите расширение из Chrome Web Store.</li>
+        <li>Установите Tampermonkey из Chrome Web Store.</li>
         <li>Откройте <a href="chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo">chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo</a> и включите пользовательские скрипты.</li>
-        <li>Вернитесь на эту страницу и нажмите <strong>Установить Gismeteo Precipitation</strong>.</li>
+        <li>Нажмите <strong>Установить Gismeteo Precipitation</strong> и подтвердите установку скрипта в Tampermonkey.</li>
         <li>Откройте Gismeteo, вставьте список городов и нажмите <strong>Собрать</strong>.</li>
       </ol>
+      <p class="note">Если страница установки Tampermonkey долго загружается, остановите загрузку вкладки. После этого Tampermonkey обычно показывает окно подтверждения установки скрипта.</p>
     </section>
 
     <footer>Version 1.2 · Author HARIBB</footer>

@@ -14,14 +14,21 @@ Open the GitHub Pages installer:
 The page contains two installation buttons:
 
 1. **Установить Tampermonkey** - opens the Tampermonkey page in Chrome Web Store.
-2. **Установить Gismeteo Precipitation** - opens the userscript install URL.
+2. **Установить Gismeteo Precipitation** - opens the direct userscript URL.
 
-After installing Tampermonkey in Chrome, open:
+Installation steps:
+
+1. Install Tampermonkey from Chrome Web Store.
+2. Open:
 
 `chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo`
 
-Enable custom userscripts, then return to the installer page and install
-Gismeteo Precipitation.
+3. Enable custom userscripts.
+4. Return to the installer page and click **Установить Gismeteo Precipitation**.
+5. Confirm script installation in Tampermonkey.
+
+If Tampermonkey's script installation page loads for too long, stop loading the
+tab. Tampermonkey usually shows the script installation confirmation after that.
 
 Direct userscript URL:
 
