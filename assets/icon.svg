@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Gismeteo Precipitation</title>
+  <desc id="desc">Cloud, raindrops and spreadsheet mark for Gismeteo precipitation export.</desc>
+  <defs>
+    <linearGradient id="bg" x1="18" y1="12" x2="112" y2="118" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#14532d"/>
+    </linearGradient>
+    <linearGradient id="cloud" x1="35" y1="31" x2="91" y2="73" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#cbd5e1"/>
+    </linearGradient>
+    <linearGradient id="drop" x1="41" y1="76" x2="85" y2="108" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <path d="M40 70c-11 0-20-8-20-18 0-9 7-17 17-18 5-12 17-20 31-20 16 0 29 10 32 24 10 2 18 10 18 20 0 12-10 21-23 21H40Z" fill="url(#cloud)"/>
+  <path d="M42 87c0 7-5 13-11 13s-11-6-11-13c0-5 7-15 11-20 4 5 11 15 11 20Zm33 5c0 8-6 15-13 15s-13-7-13-15c0-6 8-18 13-24 5 6 13 18 13 24Zm34-5c0 7-5 13-11 13s-11-6-11-13c0-5 7-15 11-20 4 5 11 15 11 20Z" fill="url(#drop)"/>
+  <rect x="78" y="78" width="31" height="31" rx="7" fill="#ecfdf5" stroke="#86efac" stroke-width="3"/>
+  <path d="M86 88h15M86 96h15M93.5 84v20" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/>
+</svg>

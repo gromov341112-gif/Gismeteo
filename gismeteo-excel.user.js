@@ -1,9 +1,16 @@
 // ==UserScript==
 // @name         Gismeteo Precipitation
 // @namespace    gismeteo-excel
-// @version      7.9
+// @version      8.0
+// @description  Export Gismeteo 10-day precipitation forecasts to a styled Excel report with daily charts and a filtered heavy-rain list.
+// @author       HARIBB
 // @match        https://www.gismeteo.ru/*
 // @grant        none
+// @icon         https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/assets/icon.svg
+// @homepageURL  https://gromov341112-gif.github.io/Gismeteo/
+// @supportURL   https://github.com/gromov341112-gif/Gismeteo/issues
+// @downloadURL  https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js
+// @updateURL    https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js
 // @require      https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js
 // @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js
 // @require      https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js
@@ -69,7 +76,7 @@
 
         <button id="gmRun" style="
           display:flex;align-items:center;justify-content:center;
-          margin:8px auto 0;width:112px;min-height:44px;padding:6px 10px;background:#16a34a;color:#fff;
+          margin:8px auto 0;width:86px;min-height:34px;padding:5px 10px;background:#16a34a;color:#fff;
           border:none;border-radius:999px;cursor:pointer;font-size:12px;text-align:center;
         ">Собрать</button>
 
@@ -107,7 +114,7 @@
     const status = document.getElementById('gmStatus');
 
     btn.disabled = true;
-    btn.textContent = 'Идёт сбор...';
+    btn.textContent = 'Сбор...';
 
     const blocks = [];
 

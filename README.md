@@ -1,32 +1,64 @@
 # Gismeteo Precipitation
 
-Tampermonkey-скрипт: `gismeteo-excel.user.js`.
+**Gismeteo Precipitation** is a Tampermonkey userscript by **HARIBB** for exporting
+Gismeteo 10-day precipitation forecasts to a styled Excel report.
 
-Текущая версия скрипта: `7.9`.
+Current userscript version: `8.0`
 
-Версия 7.9 строже выбирает город из поиска Gismeteo: для запроса вроде `Майкоп`
-скрипт отбрасывает результаты с аэропортами и берет городскую страницу прогноза.
-Скриншоты прогноза отключены: в отчете остается таблица осадков и большая
-диаграмма по дням для каждого города. Фоновая сетка листа скрыта, а у блоков
-данных есть аккуратные тонкие границы. Верхний статус без заливки, ссылка на
-прогноз показана emoji-значком без подчеркивания у левого края ячейки. Добавлен
-лист `Список` в формате `Дата / Город / Осадки / ссылка`, где погода и
-значение осадков объединены в одной ячейке. Даты для листов `Осадки` и
-`Список` берутся отдельно со страницы Gismeteo каждого города, поэтому
-учитываются разные часовые пояса. Текст погоды для листа `Список` собирается
-из `div.row-item[data-tooltip]` по той же логике, что и проверочный скрипт в
-консоли: исключаются tooltip про ветер, возмущения и бури, без подмены текста.
-Лист `Список` возвращен к одному блоку с фильтром; даты для него всегда берутся
-из набора дат листа `Осадки` и записываются как настоящие Excel-даты в формате
-`26.06.2026`. Даты листа `Осадки` строятся последовательно от первой даты
-прогноза, чтобы лишние или дублирующиеся DOM-элементы Gismeteo не перемешивали
-колонки. Даты создаются через UTC-полночь, чтобы в фильтре не появлялось время
-и не было сдвига дня. Для листа `Список` в XLSX дополнительно сохраняется
-фильтр текущего дня: при открытии выбрана только текущая дата, но остальные
-даты остаются в фильтре. Строки
-сортируются по номеру дня в прогнозе Gismeteo: сначала все записи за первый
-день, затем за второй, третий и дальше по порядку. Все даты остаются видимыми в
-таблице и доступны в фильтре. Столбец `Осадки` расширен, чтобы длинный текст
-погоды помещался. Прогноз загружается с повторными попытками, а осадки
-дополнительно читаются из DOM-строки precipitation, чтобы временная задержка
-страницы не давала ложный `FAIL`. Между блоками городов остается 2 строки.
+## Install
+
+Open the GitHub Pages installer:
+
+[Gismeteo Precipitation](https://gromov341112-gif.github.io/Gismeteo/)
+
+The page contains two installation buttons:
+
+1. **Установить Tampermonkey** - opens the official Tampermonkey website.
+2. **Установить Gismeteo Precipitation** - opens the userscript install URL.
+
+Direct userscript URL:
+
+`https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js`
+
+## Auto Update
+
+Tampermonkey updates are enabled through userscript metadata:
+
+```js
+// @downloadURL  https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js
+// @updateURL    https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js
+```
+
+After a new version is pushed to `main`, installed userscripts can receive updates
+through Tampermonkey's standard update mechanism.
+
+## What It Does
+
+- Finds the strict city forecast page on Gismeteo and avoids airport forecast pages.
+- Opens the 10-day forecast for every city from the input list.
+- Extracts daily precipitation values.
+- Extracts weather text from Gismeteo `data-tooltip` values without replacing it with guessed text.
+- Builds an Excel workbook with:
+  - `Осадки` sheet for city-by-city precipitation tables;
+  - large precipitation charts for each city;
+  - `Список` sheet for days with precipitation above 5 mm;
+  - a saved current-day filter on `Список`;
+  - clickable forecast links.
+
+## Date Rules
+
+- Dates on `Осадки` are built sequentially from the first forecast date.
+- `Список` always uses the same date set as `Осадки`.
+- Dates are stored as Excel dates in `dd.mm.yyyy` format.
+- The current-day filter is written into the XLSX file so the report opens with the current day selected while other dates remain available in the filter menu.
+
+## Files
+
+- `gismeteo-excel.user.js` - Tampermonkey userscript.
+- `index.html` - GitHub Pages installer page.
+- `assets/icon.svg` - project and userscript icon.
+- `.agents/AGENTS.md` - current project state for Codex/agent handoff.
+
+## Author
+
+HARIBB
