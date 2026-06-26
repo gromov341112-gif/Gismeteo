@@ -169,18 +169,6 @@
       text-align: center;
     }
 
-    .install-hint {
-      display: none;
-      margin-top: 14px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.4;
-    }
-
-    .install-hint.is-visible {
-      display: block;
-    }
-
     @media (max-width: 700px) {
       main {
         padding: 28px 0;
@@ -204,7 +192,6 @@
           <a class="button button-tampermonkey" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">Установить Tampermonkey</a>
           <a id="installScript" class="button button-script" href="https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js" target="_blank">Установить Gismeteo Precipitation</a>
         </div>
-        <div id="installHint" class="install-hint" role="status">Если вкладка установки продолжает загружаться, нажмите <code>Esc</code>.</div>
       </div>
     </section>
 
@@ -214,6 +201,7 @@
         <li>Установите <strong class="mark">Tampermonkey</strong>.</li>
         <li>Скопируйте <code>chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo</code>, вставьте в адресную строку Chrome/Yandex и включите пользовательские скрипты.</li>
         <li>Установите <strong class="mark">Gismeteo Precipitation</strong> и подтвердите установку скрипта в Tampermonkey.</li>
+        <li>Если вкладка установки <strong class="mark">Gismeteo Precipitation</strong> долго загружается, нажмите <strong class="mark">Esc</strong>.</li>
         <li>Откройте Gismeteo, вставьте список городов и нажмите <strong class="mark">Собрать</strong>.</li>
       </ol>
     </section>
@@ -222,11 +210,9 @@
   </main>
   <script>
     const installScript = document.getElementById('installScript');
-    const installHint = document.getElementById('installHint');
 
     installScript.addEventListener('click', event => {
       event.preventDefault();
-      installHint.classList.add('is-visible');
 
       const installWindow = window.open('', '_blank');
 
