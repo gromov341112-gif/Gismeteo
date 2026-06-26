@@ -190,7 +190,7 @@
         <h1 id="title">Gismeteo Precipitation</h1>
         <div class="actions">
           <a class="button button-tampermonkey" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">Установить Tampermonkey</a>
-          <a id="installScript" class="button button-script" href="https://www.tampermonkey.net/script_installation.php#url=https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js" target="_blank">Установить Gismeteo Precipitation</a>
+          <a class="button button-script" href="https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js" target="_blank" rel="noopener">Установить Gismeteo Precipitation</a>
         </div>
       </div>
     </section>
@@ -207,51 +207,5 @@
 
     <footer>Version 1.4 · Creator: HARIBB</footer>
   </main>
-  <script>
-    const installScript = document.getElementById('installScript');
-
-    installScript.addEventListener('click', event => {
-      event.preventDefault();
-
-      const installWindow = window.open(installScript.href, '_blank');
-
-      if (!installWindow) {
-        window.location.href = installScript.href;
-        return;
-      }
-
-      let attempts = 0;
-      const stopper = setInterval(() => {
-        attempts += 1;
-
-        try {
-          if (installWindow.closed) {
-            clearInterval(stopper);
-            return;
-          }
-
-          installWindow.stop();
-          installWindow.focus();
-        } catch (error) {
-          // Browser security may block stopping a cross-origin tab.
-        }
-
-        if (attempts >= 18) {
-          clearInterval(stopper);
-        }
-      }, 500);
-
-      [1600, 2200, 3000, 4500, 6500, 9000].forEach(delay => {
-        setTimeout(() => {
-          try {
-            installWindow.stop();
-            installWindow.focus();
-          } catch (error) {
-            // Browser security may block stopping a cross-origin tab.
-          }
-        }, delay);
-      });
-    });
-  </script>
 </body>
 </html>
