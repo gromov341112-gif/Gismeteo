@@ -62,12 +62,24 @@ Recommended workflow:
 
 1. Work in the `dev` branch.
 2. Test changes with **Gismeteo Precipitation Dev** in Tampermonkey.
-3. Keep `@version` in the dev script as a dev version, for example `1.3-dev`.
+3. Set the dev version before testing:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\set-version.ps1 1.4 -Channel dev
+```
+
 4. When the version is ready, merge the tested code changes into `main`.
-5. Keep stable metadata in `main`: `Gismeteo Precipitation`, normal version number, and update URLs from `main`.
-6. Increase the stable `@version` before publishing.
+5. Set the stable release version before publishing:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\set-version.ps1 1.4 -Channel stable
+```
+
+6. Check that metadata, README, and the installer page show the same stable version.
 
 Users only receive updates from `main`. Changes in `dev` are only for testing.
+The release script keeps stable metadata in `main`: `Gismeteo Precipitation`,
+normal version number, and update URLs from `main`.
 
 ## What It Does
 
@@ -94,3 +106,4 @@ Users only receive updates from `main`. Changes in `dev` are only for testing.
 - `gismeteo-excel.user.js` - Tampermonkey userscript.
 - `index.html` - GitHub Pages installer page.
 - `assets/icon.svg` - project and userscript icon.
+- `scripts/set-version.ps1` - updates userscript metadata and release version references.
