@@ -39,6 +39,11 @@ if ($Channel -eq 'stable') {
   $readmeText = [System.IO.File]::ReadAllText($readmePath, [System.Text.Encoding]::UTF8)
   $readmeText = $readmeText -replace 'Current userscript version: `[^`]+`', ('Current userscript version: `{0}`' -f $Version)
   $readmeText = $readmeText -replace 'for example `[^`]+-dev`', ('for example `{0}-dev`' -f $Version)
+  $readmeText = [regex]::Replace(
+    $readmeText,
+    '(set-version\.ps1 )\d+\.\d+(?:\.\d+)?( -Channel (?:dev|stable))',
+    { param($match) $match.Groups[1].Value + $Version + $match.Groups[2].Value }
+  )
   [System.IO.File]::WriteAllText($readmePath, $readmeText, $utf8NoBom)
 
   $indexText = [System.IO.File]::ReadAllText($indexPath, [System.Text.Encoding]::UTF8)

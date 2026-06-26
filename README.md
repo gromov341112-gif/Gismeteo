@@ -65,14 +65,14 @@ Recommended workflow:
 3. Set the dev version before testing:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\set-version.ps1 1.4 -Channel dev
+powershell -ExecutionPolicy Bypass -File .\scripts\set-version.ps1 1.3 -Channel dev
 ```
 
 4. When the version is ready, merge the tested code changes into `main`.
 5. Set the stable release version before publishing:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\set-version.ps1 1.4 -Channel stable
+powershell -ExecutionPolicy Bypass -File .\scripts\set-version.ps1 1.3 -Channel stable
 ```
 
 6. Check that metadata, README, and the installer page show the same stable version.
