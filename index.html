@@ -66,19 +66,11 @@
       letter-spacing: 0;
     }
 
-    p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 16px;
-      line-height: 1.55;
-      max-width: 680px;
-    }
-
     .actions {
       display: flex;
       gap: 14px;
       flex-wrap: wrap;
-      margin-top: 28px;
+      margin-top: 22px;
     }
 
     .button {
@@ -117,25 +109,6 @@
       background: var(--green-hover);
     }
 
-    .details {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-      margin-top: 18px;
-    }
-
-    .card {
-      padding: 18px;
-      background: rgba(15, 23, 42, .72);
-      border: 1px solid var(--line);
-      border-radius: 12px;
-    }
-
-    .card strong {
-      display: block;
-      margin-bottom: 8px;
-    }
-
     footer {
       margin-top: 22px;
       color: var(--muted);
@@ -153,9 +126,6 @@
         padding: 24px;
       }
 
-      .details {
-        grid-template-columns: 1fr;
-      }
     }
   </style>
 </head>
@@ -165,29 +135,10 @@
       <img class="icon" src="assets/icon.svg" alt="">
       <div>
         <h1 id="title">Gismeteo Precipitation</h1>
-        <p>
-          Tampermonkey userscript by HARIBB for collecting Gismeteo 10-day precipitation forecasts
-          into a styled Excel report with daily charts and a filtered heavy-rain list.
-        </p>
         <div class="actions">
-          <a class="button button-tampermonkey" href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Установить Tampermonkey</a>
+          <a class="button button-tampermonkey" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">Установить Tampermonkey</a>
           <a class="button button-script" href="https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js">Установить Gismeteo Precipitation</a>
         </div>
-      </div>
-    </section>
-
-    <section class="details" aria-label="Features">
-      <div class="card">
-        <strong>Excel report</strong>
-        <p>Creates sheets for precipitation tables, daily charts, and a heavy-rain summary.</p>
-      </div>
-      <div class="card">
-        <strong>Exact city pages</strong>
-        <p>Filters airport results and opens the city forecast page for 10 days.</p>
-      </div>
-      <div class="card">
-        <strong>Auto updates</strong>
-        <p>Tampermonkey receives updates from the raw userscript URL in this repository.</p>
       </div>
     </section>
 
