@@ -169,6 +169,18 @@
       text-align: center;
     }
 
+    .install-hint {
+      display: none;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .install-hint.is-visible {
+      display: block;
+    }
+
     @media (max-width: 700px) {
       main {
         padding: 28px 0;
@@ -192,6 +204,7 @@
           <a class="button button-tampermonkey" href="https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" target="_blank" rel="noopener">Установить Tampermonkey</a>
           <a id="installScript" class="button button-script" href="https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js" target="_blank">Установить Gismeteo Precipitation</a>
         </div>
+        <div id="installHint" class="install-hint" role="status">Если вкладка установки продолжает загружаться, нажмите <code>Esc</code>.</div>
       </div>
     </section>
 
@@ -205,13 +218,15 @@
       </ol>
     </section>
 
-    <footer>Version 1.4 · Creator · HARIBB</footer>
+    <footer>Version 1.4 · HARIBB</footer>
   </main>
   <script>
     const installScript = document.getElementById('installScript');
+    const installHint = document.getElementById('installHint');
 
     installScript.addEventListener('click', event => {
       event.preventDefault();
+      installHint.classList.add('is-visible');
 
       const installWindow = window.open('', '_blank');
 
@@ -222,32 +237,27 @@
 
       installWindow.location.href = installScript.href;
 
-      const stopInstallWindow = () => {
-        try {
-          if (!installWindow.closed) {
-            installWindow.stop();
-            installWindow.focus();
+      [0, 100, 300, 700].forEach(delay => {
+        setTimeout(() => {
+          try {
+            if (!installWindow.closed) {
+              installWindow.focus();
+            }
+          } catch (error) {
+            // Cross-origin browser restrictions can block direct tab control.
           }
-        } catch (error) {
-          // Cross-origin browser restrictions can block direct tab control.
-        }
-      };
-
-      stopInstallWindow();
-      [50, 100, 180, 300, 500, 800, 1200, 1800, 2600].forEach(delay => {
-        setTimeout(stopInstallWindow, delay);
+        }, delay);
       });
 
       setTimeout(() => {
         try {
           if (!installWindow.closed) {
-            installWindow.stop();
-            installWindow.location.replace('about:blank');
+            installWindow.focus();
           }
         } catch (error) {
-          stopInstallWindow();
+          // Cross-origin browser restrictions can block direct tab control.
         }
-      }, 3800);
+      }, 1200);
     });
   </script>
 </body>
