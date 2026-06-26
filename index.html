@@ -197,7 +197,7 @@
         <li>Нажмите <strong>Установить Gismeteo Precipitation</strong> и подтвердите установку скрипта в Tampermonkey.</li>
         <li>Откройте Gismeteo, вставьте список городов и нажмите <strong>Собрать</strong>.</li>
       </ol>
-      <p class="note">При установке откроется вкладка Tampermonkey. Страница автоматически остановит её загрузку, после чего появится окно установки скрипта.</p>
+      <p class="note">При установке откроется вкладка Tampermonkey. Через 2 секунды страница автоматически остановит её загрузку, после чего появится окно установки скрипта.</p>
     </section>
 
     <footer>Version 1.2 · Author HARIBB</footer>
@@ -215,13 +215,15 @@
         return;
       }
 
-      setTimeout(() => {
-        try {
-          installWindow.stop();
-        } catch (error) {
-          // Browser security may block stopping a cross-origin tab.
-        }
-      }, 2000);
+      [2000, 2500, 3000, 4000].forEach(delay => {
+        setTimeout(() => {
+          try {
+            installWindow.stop();
+          } catch (error) {
+            // Browser security may block stopping a cross-origin tab.
+          }
+        }, delay);
+      });
     });
   </script>
 </body>
