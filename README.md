@@ -43,6 +43,29 @@ Tampermonkey updates are enabled through userscript metadata:
 After a new version is pushed to `main`, installed userscripts can receive updates
 through Tampermonkey's standard update mechanism.
 
+## Development Workflow
+
+Use the stable script for users and the dev script for testing.
+
+Stable script for users:
+
+`https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js`
+
+Dev script for testing:
+
+`https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/dev/gismeteo-excel.dev.user.js`
+
+Recommended workflow:
+
+1. Work in the `dev` branch.
+2. Test changes with **Gismeteo Precipitation Dev** in Tampermonkey.
+3. Keep `@version` in the dev script as a dev version, for example `1.3-dev`.
+4. When the version is ready, copy the tested changes into `gismeteo-excel.user.js`.
+5. Increase the stable `@version`.
+6. Merge or push the final stable changes to `main`.
+
+Users only receive updates from `main`. Changes in `dev` are only for testing.
+
 ## What It Does
 
 - Finds the strict city forecast page on Gismeteo and avoids airport forecast pages.
@@ -66,5 +89,6 @@ through Tampermonkey's standard update mechanism.
 ## Files
 
 - `gismeteo-excel.user.js` - Tampermonkey userscript.
+- `gismeteo-excel.dev.user.js` - separate Tampermonkey userscript for testing from the `dev` branch.
 - `index.html` - GitHub Pages installer page.
 - `assets/icon.svg` - project and userscript icon.
