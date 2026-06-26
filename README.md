@@ -1,94 +1,69 @@
 # Gismeteo Precipitation
 
-**Gismeteo Precipitation** is a Tampermonkey userscript by **Creator: HARIBB**.
-It collects 10-day precipitation forecasts from Gismeteo and exports them to a
-clean Excel report.
+**Gismeteo Precipitation** — userscript для Tampermonkey от **Creator: HARIBB**.
+Скрипт собирает прогноз осадков с Gismeteo по списку городов и формирует аккуратный Excel-отчет.
 
-Current userscript version: `1.3`
+Текущая версия: `1.3`
 
-## What It Does
+## Возможности
 
-The script is built for quickly preparing a weather precipitation report by a
-list of cities.
+- Поиск строгого прогноза по указанному городу без подмены на аэропорты.
+- Сбор прогноза на 10 дней по каждому городу.
+- Выгрузка осадков в миллиметрах по дням.
+- Сохранение текста погоды так, как он указан на Gismeteo.
+- Формирование Excel-файла с листом `Осадки`.
+- Отдельный лист `Список` для дней, где осадки больше 5 мм.
+- Красивые диаграммы осадков по каждому городу.
+- Кликабельные ссылки на прогнозы.
+- Автофильтр по текущему дню на листе `Список`.
+- Даты в Excel хранятся как настоящие даты в формате `dd.mm.yyyy`.
 
-It:
+## Установка
 
-- finds the exact Gismeteo city forecast page and avoids airport forecast pages;
-- opens the 10-day forecast for every city from the input list;
-- extracts daily precipitation values in millimeters;
-- extracts weather text exactly from Gismeteo tooltips, without replacing it with guessed labels;
-- builds a styled Excel workbook with city tables, precipitation charts, and clickable forecast links;
-- creates a `Список` sheet with days where precipitation is above 5 mm;
-- opens the `Список` sheet with the current day selected in the date filter while keeping all dates available.
-
-## Install
-
-Open the GitHub Pages installer:
+Откройте страницу установки:
 
 [Gismeteo Precipitation](https://gromov341112-gif.github.io/Gismeteo/)
 
-Installation steps:
-
-1. Install **Tampermonkey**.
-2. Copy this address, paste it into the Chrome/Yandex address bar, and press Enter:
+1. Установите **Tampermonkey**.
+2. Скопируйте адрес:
 
 `chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo`
 
-3. Enable custom userscripts.
-4. Return to the installer page and click **Установить Gismeteo Precipitation**.
-5. Confirm script installation in **Tampermonkey**.
+3. Вставьте его в адресную строку Chrome/Yandex и включите пользовательские скрипты.
+4. Вернитесь на страницу установки и нажмите **Установить Gismeteo Precipitation**.
+5. Подтвердите установку скрипта в **Tampermonkey**.
 
-Direct stable userscript URL:
+## Использование
 
-`https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js`
+1. Откройте Gismeteo.
+2. Нажмите на панель **Gismeteo Precipitation**.
+3. Вставьте список городов, каждый город с новой строки.
+4. Нажмите **Собрать**.
+5. Дождитесь формирования Excel-файла.
 
-## Auto Update
+## Автообновление
 
-Stable userscript auto-update is enabled only in `gismeteo-excel.user.js`:
+Стабильная версия обновляется через Tampermonkey по ссылкам, указанным в metadata скрипта:
 
 ```js
 // @downloadURL  https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js
 // @updateURL    https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/main/gismeteo-excel.user.js
 ```
 
-The test script in `dev/` must not contain `@downloadURL` or `@updateURL`.
+После публикации новой версии Tampermonkey сможет получить обновление автоматически или через ручную проверку обновлений.
 
-## Development
+## Состав отчета
 
-Development is done only in:
+Excel-файл содержит:
 
-`dev/gismeteo-excel-dev.user.js`
+- `Осадки` — таблицы по городам и диаграммы осадков;
+- `Список` — даты и города с осадками больше 5 мм;
+- ссылки на страницы прогноза;
+- оформление таблиц в стиле отчета;
+- сохраненный фильтр текущего дня.
 
-This file is for manual testing and has no auto-update metadata.
+## Файлы проекта
 
-After testing, publish the dev script into the stable userscript with:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\publish-dev.ps1 1.3
-```
-
-The command:
-
-- copies tested code from `dev/gismeteo-excel-dev.user.js` to `gismeteo-excel.user.js`;
-- sets stable metadata and auto-update URLs in `gismeteo-excel.user.js`;
-- keeps dev metadata without auto-update URLs;
-- updates the version in the stable script, dev script, README, and installer page.
-
-## Workbook Output
-
-The generated Excel workbook contains:
-
-- `Осадки` - city-by-city precipitation tables and daily charts;
-- `Список` - cities/days with precipitation above 5 mm;
-- clickable forecast links;
-- report styling with clean borders, fills, and chart blocks;
-- Excel date filters with dates stored as real dates in `dd.mm.yyyy` format.
-
-## Files
-
-- `gismeteo-excel.user.js` - stable Tampermonkey userscript for users.
-- `dev/gismeteo-excel-dev.user.js` - test userscript without auto-update.
-- `index.html` - GitHub Pages installer page.
-- `assets/icon.svg` - project and userscript icon.
-- `.agents/AGENTS.md` - project rules for future agent sessions.
-- `scripts/publish-dev.ps1` - publishes the tested dev script as a stable release.
+- `gismeteo-excel.user.js` — основной userscript для установки пользователями.
+- `index.html` — страница установки GitHub Pages.
+- `assets/icon.svg` — иконка проекта.
