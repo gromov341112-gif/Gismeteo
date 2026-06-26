@@ -45,7 +45,10 @@ through Tampermonkey's standard update mechanism.
 
 ## Development Workflow
 
-Use the stable script for users and the dev script for testing.
+Use the same userscript file in two branches:
+
+- `main` - stable version for users;
+- `dev` - test version for development.
 
 Stable script for users:
 
@@ -53,16 +56,16 @@ Stable script for users:
 
 Dev script for testing:
 
-`https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/dev/gismeteo-excel.dev.user.js`
+`https://raw.githubusercontent.com/gromov341112-gif/Gismeteo/dev/gismeteo-excel.user.js`
 
 Recommended workflow:
 
 1. Work in the `dev` branch.
 2. Test changes with **Gismeteo Precipitation Dev** in Tampermonkey.
 3. Keep `@version` in the dev script as a dev version, for example `1.3-dev`.
-4. When the version is ready, copy the tested changes into `gismeteo-excel.user.js`.
-5. Increase the stable `@version`.
-6. Merge or push the final stable changes to `main`.
+4. When the version is ready, merge the tested code changes into `main`.
+5. Keep stable metadata in `main`: `Gismeteo Precipitation`, normal version number, and update URLs from `main`.
+6. Increase the stable `@version` before publishing.
 
 Users only receive updates from `main`. Changes in `dev` are only for testing.
 
@@ -89,6 +92,5 @@ Users only receive updates from `main`. Changes in `dev` are only for testing.
 ## Files
 
 - `gismeteo-excel.user.js` - Tampermonkey userscript.
-- `gismeteo-excel.dev.user.js` - separate Tampermonkey userscript for testing from the `dev` branch.
 - `index.html` - GitHub Pages installer page.
 - `assets/icon.svg` - project and userscript icon.
