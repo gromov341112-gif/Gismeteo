@@ -84,7 +84,7 @@
       text-decoration: none;
       font-weight: 700;
       border: 1px solid rgba(255, 255, 255, .1);
-      transition: transform .16s ease, background-color .16s ease, box-shadow .16s ease;
+      transition: transform .16s ease, background-color .16s ease;
     }
 
     .button:hover {
@@ -93,7 +93,6 @@
 
     .button-tampermonkey {
       background: var(--blue);
-      box-shadow: 0 12px 26px rgba(37, 99, 235, .26);
     }
 
     .button-tampermonkey:hover {
@@ -102,7 +101,6 @@
 
     .button-script {
       background: var(--green);
-      box-shadow: 0 12px 26px rgba(22, 163, 74, .26);
     }
 
     .button-script:hover {
@@ -130,21 +128,23 @@
       line-height: 1.6;
     }
 
-    .note {
-      margin: 12px 0 0;
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    code {
+    code,
+    .mark {
       display: inline-block;
       padding: 2px 7px;
       border-radius: 6px;
       background: rgba(2, 6, 23, .7);
-      color: #e5e7eb;
       border: 1px solid var(--line);
+    }
+
+    code {
+      color: #e5e7eb;
       user-select: all;
+    }
+
+    .mark {
+      color: #f87171;
+      font-weight: 700;
     }
 
     .steps a {
@@ -190,17 +190,16 @@
     </section>
 
     <section class="steps" aria-labelledby="steps-title">
-      <h2 id="steps-title">Установка</h2>
+      <h2 id="steps-title">Инструкция</h2>
       <ol>
-        <li>Установите Tampermonkey из Chrome Web Store.</li>
+        <li>Установите <strong class="mark">Tampermonkey</strong>.</li>
         <li>Скопируйте <code>chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo</code>, вставьте в адресную строку Chrome и включите пользовательские скрипты.</li>
-        <li>Нажмите <strong>Установить Gismeteo Precipitation</strong> и подтвердите установку скрипта в Tampermonkey.</li>
+        <li>Нажмите <strong class="mark">Установить Gismeteo Precipitation</strong> и <strong class="mark">подтвердите установку скрипта в Tampermonkey</strong>.</li>
         <li>Откройте Gismeteo, вставьте список городов и нажмите <strong>Собрать</strong>.</li>
       </ol>
-      <p class="note">При установке откроется вкладка Tampermonkey. Через 2 секунды страница автоматически остановит её загрузку, после чего появится окно установки скрипта.</p>
     </section>
 
-    <footer>Version 1.2 · Author HARIBB</footer>
+    <footer>Version 1.3 · Author HARIBB</footer>
   </main>
   <script>
     const installScript = document.getElementById('installScript');

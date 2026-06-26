@@ -3,7 +3,7 @@
 **Gismeteo Precipitation** is a Tampermonkey userscript by **HARIBB** for exporting
 Gismeteo 10-day precipitation forecasts to a styled Excel report.
 
-Current userscript version: `1.2`
+Current userscript version: `1.3`
 
 ## Install
 
@@ -18,18 +18,14 @@ The page contains two installation buttons:
 
 Installation steps:
 
-1. Install Tampermonkey from Chrome Web Store.
+1. Install **Tampermonkey**.
 2. Copy this address, paste it into Chrome's address bar, and press Enter:
 
 `chrome://extensions/?id=dhdgffkkebhmkfjojejmpbldmpobfkfo`
 
 3. Enable custom userscripts.
 4. Return to the installer page and click **Установить Gismeteo Precipitation**.
-5. Confirm script installation in Tampermonkey.
-
-The installer page opens the Tampermonkey installation tab and automatically
-stops its loading after a short delay so that Tampermonkey can show the script
-installation confirmation.
+5. Confirm script installation in **Tampermonkey**.
 
 Direct userscript URL:
 

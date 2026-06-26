@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gismeteo Precipitation
 // @namespace    gismeteo-excel
-// @version      1.2
+// @version      1.3
 // @description  Export Gismeteo 10-day precipitation forecasts to a styled Excel report with daily charts and a filtered heavy-rain list.
 // @author       HARIBB
 // @match        https://www.gismeteo.ru/*
