@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gismeteo Precipitation
 // @namespace    gismeteo-excel
-// @version      1.4
+// @version      1.5
 // @description  Export Gismeteo 10-day precipitation forecasts to a styled Excel report with daily charts and a filtered heavy-rain list.
 // @author       HARIBB
 // @match        https://www.gismeteo.ru/*
@@ -21,6 +21,8 @@
 
   const STORAGE_KEY = 'gm_city_list_v45';
   const BASE = 'https://www.gismeteo.ru';
+  const APP_VERSION = '1.5';
+  const APP_TITLE = `Gismeteo Precipitation ${APP_VERSION}`;
   const LOCATION_WORDS_RE = /^(?:погода\s+)?(?:в|во|на|для)\s+/i;
   const FORECAST_TAIL_RE = /\s+(?:на\s+(?:10\s+дней|3\s+дня|2\s+недели|месяц|неделю|выходные)|сегодня|завтра).*$/i;
   const BAD_LOCATION_RE = /аэропорт|airport|аэродром|aeroport|авиабаза|внуково|шереметьево|домодедово|спиченково|остафьево/i;
@@ -61,7 +63,7 @@
         border-bottom:1px solid #263244;
         font-size:13px;font-weight:bold;display:flex;justify-content:space-between;
       ">
-        <span>Gismeteo Precipitation</span><span id="gmToggle">＋</span>
+        <span>${APP_TITLE}</span><span id="gmToggle">＋</span>
       </div>
 
       <div id="gmBody" style="display:none;padding:8px;">
