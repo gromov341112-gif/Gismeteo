@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gismeteo Precipitation
 // @namespace    gismeteo-excel
-// @version      1.8
+// @version      1.9
 // @description  Export Gismeteo 10-day precipitation forecasts to a styled Excel report with daily charts and a filtered heavy-rain list.
 // @author       HARIBB
 // @match        https://www.gismeteo.ru/*
@@ -21,8 +21,10 @@
 
   const STORAGE_KEY = 'gm_city_list_v45';
   const BASE = 'https://www.gismeteo.ru';
-  const APP_VERSION = '1.8';
+  const APP_VERSION = '1.9';
   const APP_TITLE = `Gismeteo Precipitation v${APP_VERSION}`;
+  const PANEL_COLLAPSED_WIDTH = 'max-content';
+  const PANEL_EXPANDED_WIDTH = '306px';
   const LOCATION_WORDS_RE = /^(?:погода\s+)?(?:в|во|на|для)\s+/i;
   const FORECAST_TAIL_RE = /\s+(?:на\s+(?:10\s+дней|3\s+дня|2\s+недели|месяц|неделю|выходные)|сегодня|завтра).*$/i;
   const BAD_LOCATION_RE = /аэропорт|airport|аэродром|aeroport|авиабаза|внуково|шереметьево|домодедово|спиченково|остафьево/i;
@@ -50,7 +52,7 @@
     const box = document.createElement('div');
     box.id = 'gmBox';
     box.style = `
-      position: fixed; right: 18px; bottom: 18px; width: 292px; max-width: calc(100vw - 36px);
+      position: fixed; right: 18px; bottom: 18px; width: ${PANEL_COLLAPSED_WIDTH}; max-width: calc(100vw - 36px);
       background: #111827; z-index: 999999; border-radius: 10px;
       border: 1px solid #263244;
       box-shadow: 0 14px 34px rgba(0,0,0,.38);
@@ -61,9 +63,9 @@
       <div id="gmHeader" style="
         background:#0f172a;color:#f8fafc;padding:8px 10px;cursor:pointer;
         border-bottom:1px solid #263244;
-        font-size:13px;font-weight:bold;display:flex;justify-content:space-between;gap:8px;
+        font-size:13px;font-weight:bold;
       ">
-        <span style="white-space:nowrap;flex:0 0 auto;">${APP_TITLE}</span><span id="gmToggle">＋</span>
+        <span style="white-space:nowrap;">${APP_TITLE}</span>
       </div>
 
       <div id="gmBody" style="display:none;padding:8px;">
@@ -91,8 +93,7 @@
     document.getElementById('gmHeader').onclick = () => {
       collapsed = !collapsed;
       document.getElementById('gmBody').style.display = collapsed ? 'none' : 'block';
-      document.getElementById('gmToggle').textContent = collapsed ? '＋' : '−';
-      box.style.width = collapsed ? '176px' : '306px';
+      box.style.width = collapsed ? PANEL_COLLAPSED_WIDTH : PANEL_EXPANDED_WIDTH;
     };
 
     document.getElementById('gmRun').onclick = async () => {
