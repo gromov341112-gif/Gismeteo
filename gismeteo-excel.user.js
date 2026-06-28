@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gismeteo Precipitation
 // @namespace    gismeteo-excel
-// @version      2.1
+// @version      2.2
 // @description  Export Gismeteo 10-day precipitation, wind, and gust forecasts to a styled Excel report with daily charts and filtered alert lists.
 // @author       HARIBB
 // @match        https://www.gismeteo.ru/*
@@ -22,7 +22,7 @@
   const STORAGE_KEY = 'gm_city_list_v45';
   const FIXED_LIST_STORAGE_KEY = 'gm_fixed_osadki_gust_city_list_v1';
   const BASE = 'https://www.gismeteo.ru';
-  const APP_VERSION = '2.1';
+  const APP_VERSION = '2.2';
   const APP_TITLE = `Gismeteo Precipitation v${APP_VERSION}`;
   const PANEL_COLLAPSED_WIDTH = 'max-content';
   const PANEL_EXPANDED_WIDTH = '336px';
