@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gismeteo Precipitation
 // @namespace    gismeteo-excel
-// @version      2.2
+// @version      2.3
 // @description  Export Gismeteo 10-day precipitation, wind, and gust forecasts to a styled Excel report with daily charts and filtered alert lists.
 // @author       HARIBB
 // @match        https://www.gismeteo.ru/*
@@ -22,10 +22,11 @@
   const STORAGE_KEY = 'gm_city_list_v45';
   const FIXED_LIST_STORAGE_KEY = 'gm_fixed_osadki_gust_city_list_v1';
   const BASE = 'https://www.gismeteo.ru';
-  const APP_VERSION = '2.2';
+  const APP_VERSION = '2.3';
   const APP_TITLE = `Gismeteo Precipitation v${APP_VERSION}`;
   const PANEL_COLLAPSED_WIDTH = 'max-content';
   const PANEL_EXPANDED_WIDTH = '336px';
+  const TABLE_ALERT_FILL = 'FFFFD6D6';
   const LOCATION_WORDS_RE = /^(?:погода\s+)?(?:в|во|на|для)\s+/i;
   const FORECAST_TAIL_RE = /\s+(?:на\s+(?:10\s+дней|3\s+дня|2\s+недели|месяц|неделю|выходные)|сегодня|завтра).*$/i;
   const BAD_LOCATION_RE = /аэропорт|airport|аэродром|aeroport|авиабаза|внуково|шереметьево|домодедово|спиченково|остафьево/i;
@@ -1487,14 +1488,14 @@
 
     const reportCitySet = buildFixedCitySet(reportCities);
     const listRows = buildStrongRainRows(blocks, osadkiDays, reportCitySet);
-    const currentDay = osadkiDays[0] || buildDates()[0];
+    const currentDay = buildDates()[0];
     const currentDate = makeExcelDateFromForecastDay(currentDay, 0);
 
     ws.getCell(2, 1).value = `По умолчанию показан текущий день: ${formatShortDate(currentDay)}. Выберите другую дату через фильтр.`;
     ws.getCell(2, 1).font = { name: 'Arial', size: 10, color: { argb: 'FF6B7280' } };
 
     const lastRow = writeListTable(ws, listRows, 4, dataBorder, true, currentDate, {
-      valueFill: 'FFFFD6D6'
+      valueFill: TABLE_ALERT_FILL
     });
 
     return {
@@ -1544,7 +1545,7 @@
     ws.getCell(1, 1).alignment = { horizontal: 'left', vertical: 'middle' };
     ws.getRow(1).height = 24;
 
-    const currentDay = osadkiDays[0] || buildDates()[0];
+    const currentDay = buildDates()[0];
     const currentDate = makeExcelDateFromForecastDay(currentDay, 0);
     const fixedList = dedupeCityList(fixedCities);
     const fixedCitySet = buildFixedCitySet(fixedList);
@@ -1563,7 +1564,7 @@
     const lastRow = writeDynamicRainGustTable(ws, listRows, fixedCitySet, reportCitySet, headerRow, dataBorder, currentDate, {
       valueHeader: 'Осадки/Порывы',
       emptyText: 'Нет дней с осадками или порывами',
-      getValueFill: item => item.rain > 5 || item.gust > 10 ? 'FFFFD6D6' : null,
+      getValueFill: item => item.rain > 5 || item.gust > 10 ? TABLE_ALERT_FILL : null,
       formatValue: item => makeRainGustListText(item.weather, item.rain, item.gust),
       fixedRowsCount: fixedList.length
     });
@@ -1587,7 +1588,8 @@
     const lastDataRow = dataStartRow + maxRows - 1;
     const rawStartRow = dataStartRow;
     const rawLastRow = rawStartRow + Math.max(0, items.length - 1);
-    const fixedLastRow = 6 + (options.fixedRowsCount || 1);
+    const fixedRowsCount = Math.max(options.fixedRowsCount || 0, 6);
+    const fixedLastRow = 6 + fixedRowsCount;
     const fixedRange = `$A$7:$A$${fixedLastRow}`;
 
     headers.forEach((header, index) => {
@@ -1615,7 +1617,7 @@
       ws.getCell(row, 11).value = item.url || '';
       ws.getCell(row, 12).value = item.rain > 5 || item.gust > 10 ? 1 : 0;
       ws.getCell(row, 13).value = {
-        formula: `IF(COUNTA(${fixedRange})=0,1,IF(COUNTIF(${fixedRange},I${row})>0,1,0))`,
+        formula: `IF(COUNTIF(${fixedRange},"?*")=0,1,IF(COUNTIF(${fixedRange},I${row})>0,1,0))`,
         result: fixedCitySet
           ? (isCityInFixedSet(item.city, fixedCitySet) ? 1 : 0)
           : 1
@@ -1690,13 +1692,6 @@
           horizontal: 'center',
           vertical: 'middle'
         };
-        if (initialItem) {
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: row % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC' }
-          };
-        }
       }
 
       ws.getRow(row).hidden = false;
@@ -1730,8 +1725,8 @@
               fill: {
                 type: 'pattern',
                 pattern: 'solid',
-                fgColor: { argb: 'FFFFD6D6' },
-                bgColor: { argb: 'FFFFD6D6' }
+                fgColor: { argb: TABLE_ALERT_FILL },
+                bgColor: { argb: TABLE_ALERT_FILL }
               }
             }
           }
@@ -1802,6 +1797,8 @@
 
     for (const item of items) {
       const dayDate = item.dayDate || makeExcelDateFromForecastDay(item.day, item.dayIndex);
+      const rowHidden = Boolean(dayDate && currentDate && !isSameExcelDay(dayDate, currentDate));
+
       ws.getCell(row, 1).value = dayDate || (item.dateText || formatShortDate(item.day, item.dayIndex));
       if (dayDate) {
         ws.getCell(row, 1).numFmt = 'dd.mm.yyyy';
@@ -1845,21 +1842,20 @@
             }
           };
         }
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: {
-            argb: c === 3
-              ? (typeof options.getValueFill === 'function' ? options.getValueFill(item) : options.valueFill) ||
-                (row % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC')
-              : row % 2 === 0
-                ? 'FFFFFFFF'
-                : 'FFF8FAFC'
-          }
-        };
+        const valueFill = c === 3
+          ? (typeof options.getValueFill === 'function' ? options.getValueFill(item) : options.valueFill)
+          : null;
+
+        if (valueFill) {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: valueFill }
+          };
+        }
       }
 
-      ws.getRow(row).hidden = Boolean(dayDate && currentDate && !isSameExcelDay(dayDate, currentDate));
+      ws.getRow(row).hidden = rowHidden;
       row += 1;
     }
 
@@ -1899,6 +1895,9 @@
       .map((day, index) => makeExcelDateFromForecastDay(day, index))
       .filter(Boolean);
     const currentDate = makeExcelDateFromForecastDay(currentDay, 0) || dates[0] || null;
+    const pickerDates = currentDate && !dates.some(date => isSameExcelDay(date, currentDate))
+      ? [currentDate, ...dates]
+      : dates;
 
     const dateCell = ws.getCell(4, 1);
     dateCell.value = currentDate;
@@ -1912,18 +1911,18 @@
       fgColor: { argb: 'FFF8FAFC' }
     };
 
-    dates.forEach((date, index) => {
+    pickerDates.forEach((date, index) => {
       const row = index + 5;
       const cell = ws.getCell(row, 16);
       cell.value = date;
       cell.numFmt = 'dd.mm.yyyy';
     });
 
-    if (dates.length) {
+    if (pickerDates.length) {
       dateCell.dataValidation = {
         type: 'list',
         allowBlank: false,
-        formulae: [`$P$5:$P$${dates.length + 4}`]
+        formulae: [`$P$5:$P$${pickerDates.length + 4}`]
       };
     }
   }
@@ -1935,7 +1934,13 @@
     ws.getCell(6, 1).alignment = { horizontal: 'center', vertical: 'middle' };
 
     for (let col = 1; col <= 3; col++) {
-      ws.getCell(6, col).border = dataBorder;
+      const cell = ws.getCell(6, col);
+      cell.border = dataBorder;
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF8FAFC' }
+      };
     }
 
     const list = fixedCities.map(city => cleanCityName(city)).filter(Boolean);
@@ -2055,7 +2060,7 @@
 
         if (!Number.isFinite(rain) || rain <= 5) continue;
 
-        const day = osadkiDays?.[dayIndex] || block.days?.[dayIndex] || fallbackDays[dayIndex];
+        const day = block.days?.[dayIndex] || osadkiDays?.[dayIndex] || fallbackDays[dayIndex];
         const dayDate = makeExcelDateFromForecastDay(day, dayIndex);
         const dateText = formatShortDate(day, dayIndex);
 
@@ -2094,7 +2099,7 @@
 
         if (!hasRain && !hasGust) continue;
 
-        const day = osadkiDays?.[dayIndex] || block.days?.[dayIndex] || fallbackDays[dayIndex];
+        const day = block.days?.[dayIndex] || osadkiDays?.[dayIndex] || fallbackDays[dayIndex];
         const dayDate = makeExcelDateFromForecastDay(day, dayIndex);
         const dateText = formatShortDate(day, dayIndex);
 
