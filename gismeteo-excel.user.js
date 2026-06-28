@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Gismeteo Precipitation
 // @namespace    gismeteo-excel
-// @version      1.9
-// @description  Export Gismeteo 10-day precipitation forecasts to a styled Excel report with daily charts and a filtered heavy-rain list.
+// @version      2.0
+// @description  Export Gismeteo 10-day precipitation, wind, and gust forecasts to a styled Excel report with daily charts and filtered alert lists.
 // @author       HARIBB
 // @match        https://www.gismeteo.ru/*
 // @grant        none
@@ -21,7 +21,7 @@
 
   const STORAGE_KEY = 'gm_city_list_v45';
   const BASE = 'https://www.gismeteo.ru';
-  const APP_VERSION = '1.9';
+  const APP_VERSION = '2.0';
   const APP_TITLE = `Gismeteo Precipitation v${APP_VERSION}`;
   const PANEL_COLLAPSED_WIDTH = 'max-content';
   const PANEL_EXPANDED_WIDTH = '306px';
@@ -124,21 +124,23 @@
       try {
         status.textContent = `${i + 1}/${cities.length}: поиск ${rawCity}`;
 
-        const found = await findCityUrl(rawCity);
-
-        status.textContent = `${i + 1}/${cities.length}: прогноз ${found.name}`;
-
-        const forecastUrl = make10DaysUrl(found.url);
-        const parsed = await loadForecastWithRetries(forecastUrl, 3);
+        const resolved = await loadCityForecast(rawCity, found => {
+          status.textContent = `${i + 1}/${cities.length}: прогноз ${found.name}`;
+        });
+        const { found, forecastUrl, parsed } = resolved;
         const rainChart = makeRainChartImage(found.name || rawCity, parsed);
+        const windChart = makeWindChartImage(found.name || rawCity, parsed);
 
         blocks.push({
           city: found.name || rawCity,
           url: forecastUrl,
           days: parsed.days,
           rain: parsed.rain,
+          wind: parsed.wind,
+          gust: parsed.gust,
           weather: parsed.weather,
           rainChart,
+          windChart,
           status: 'OK'
         });
       } catch (e) {
@@ -149,8 +151,11 @@
           url: '',
           days: buildDates(),
           rain: Array(10).fill(''),
+          wind: Array(10).fill(''),
+          gust: Array(10).fill(''),
           weather: Array(10).fill(''),
           rainChart: null,
+          windChart: null,
           status: 'FAIL'
         });
       }
@@ -166,41 +171,96 @@
     btn.textContent = 'Собрать';
   }
 
+  async function loadCityForecast(city, onAttempt) {
+    const candidates = await findCityCandidates(city);
+    let lastError = null;
+
+    for (const found of candidates) {
+      const forecastUrl = make10DaysUrl(found.url);
+
+      try {
+        if (typeof onAttempt === 'function') onAttempt(found);
+
+        const parsed = await loadForecastWithRetries(forecastUrl, 3, found);
+
+        return { found, forecastUrl, parsed };
+      } catch (e) {
+        lastError = e;
+      }
+    }
+
+    throw lastError || new Error(`город не найден: ${city}`);
+  }
+
   async function findCityUrl(city) {
-    const searchUrl = `${BASE}/search/${encodeURIComponent(city)}/`;
-    const loaded = await loadPageWithIframe(searchUrl, 9000);
-    const doc = loaded.doc;
-
-    const query = normalizeLocation(city);
-    const allCandidates = [...doc.querySelectorAll('a[href*="/weather-"]')]
-      .map(a => buildCityCandidate(a, query))
-      .filter(Boolean)
-      .filter(x =>
-        x.href.includes('/weather-') &&
-        !x.href.includes('/maps/') &&
-        !isBadLocation(x)
-      );
-
-    const strictCandidates = allCandidates
-      .filter(x => isStrictCityMatch(query, x.normalizedLocation))
-      .sort((a, b) => b.score - a.score);
-
-    const candidates = strictCandidates.length
-      ? strictCandidates
-      : allCandidates
-        .filter(x => isWeakCityMatch(query, x.normalizedLocation))
-        .sort((a, b) => b.score - a.score);
-
-    loaded.iframe.remove();
+    const candidates = await findCityCandidates(city);
 
     if (!candidates.length) throw new Error(`город не найден: ${city}`);
 
     return candidates[0];
   }
 
+  async function findCityCandidates(city) {
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        return await findCityCandidatesOnce(city);
+      } catch (e) {
+        lastError = e;
+
+        if (attempt < 2) await sleep(900);
+      }
+    }
+
+    throw lastError || new Error(`город не найден: ${city}`);
+  }
+
+  async function findCityCandidatesOnce(city) {
+    const searchUrl = `${BASE}/search/${encodeURIComponent(city)}/`;
+    const loaded = await loadPageWithIframe(searchUrl, 9000);
+
+    try {
+      const doc = loaded.doc;
+      const query = normalizeLocation(city);
+      const allCandidates = [...doc.querySelectorAll('a[href*="/weather-"]')]
+        .map(a => buildCityCandidate(a, query))
+        .filter(Boolean)
+        .filter(x =>
+          x.href.includes('/weather-') &&
+          !x.href.includes('/maps/') &&
+          !isBadLocation(x)
+        );
+
+      const candidates = uniqueCityCandidates(allCandidates
+        .filter(x => isExactCityMatch(query, x.normalizedLocation))
+        .sort((a, b) => b.score - a.score));
+
+      if (!candidates.length) throw new Error(`город не найден: ${city}`);
+
+      return candidates;
+    } finally {
+      loaded.iframe.remove();
+    }
+  }
+
+  function uniqueCityCandidates(candidates) {
+    const seen = new Set();
+
+    return candidates.filter(candidate => {
+      const key = make10DaysUrl(candidate.url);
+
+      if (seen.has(key)) return false;
+
+      seen.add(key);
+      return true;
+    });
+  }
+
   function buildCityCandidate(a, query) {
     const href = a.getAttribute('href') || '';
     const rawText = a.innerText || a.textContent || '';
+    const contextText = getCandidateContextText(a);
     const name = cleanCityName(rawText);
     const location = extractLocationName(name);
     const normalizedLocation = normalizeLocation(location || name);
@@ -212,8 +272,24 @@
       href,
       url: href.startsWith('http') ? href : BASE + href,
       normalizedLocation,
-      score: scoreCity(query, normalizedLocation, href, name)
+      contextText,
+      score: scoreCity(query, normalizedLocation, href, `${name} ${contextText}`)
     };
+  }
+
+  function getCandidateContextText(a) {
+    const ownText = cleanCityName(a.innerText || a.textContent || '');
+    const maxContextLength = Math.max(ownText.length + 240, 300);
+
+    for (let node = a.parentElement; node && node !== document.body; node = node.parentElement) {
+      const text = cleanCityName(node.innerText || node.textContent || '');
+
+      if (text && text.length > ownText.length && text.length <= maxContextLength) {
+        return text;
+      }
+    }
+
+    return '';
   }
 
   function cleanCityName(text) {
@@ -245,30 +321,17 @@
   }
 
   function isBadLocation(candidate) {
-    return BAD_LOCATION_RE.test(`${candidate.name} ${candidate.href} ${candidate.normalizedLocation}`);
+    return BAD_LOCATION_RE.test(`${candidate.name} ${candidate.href} ${candidate.normalizedLocation} ${candidate.contextText}`);
   }
 
-  function isStrictCityMatch(query, candidate) {
+  function isExactCityMatch(query, candidate) {
     if (!query || !candidate) return false;
     if (candidate === query) return true;
-    if (candidate.startsWith(`${query} `) || candidate.startsWith(`${query}-`)) return true;
 
     return candidate
       .split(/[\s-]+/)
       .filter(Boolean)
       .join(' ') === query;
-  }
-
-  function isWeakCityMatch(query, candidate) {
-    if (!query || !candidate) return false;
-    if (isStrictCityMatch(query, candidate)) return true;
-
-    const queryWords = query.split(/[\s-]+/).filter(Boolean);
-    const candidateWords = candidate.split(/[\s-]+/).filter(Boolean);
-
-    return queryWords.length > 0 && queryWords.every(word =>
-      candidateWords.some(candidateWord => candidateWord.startsWith(word))
-    );
   }
 
   function scoreCity(query, candidate, href, text) {
@@ -307,7 +370,7 @@
     return url + '10-days/';
   }
 
-  async function loadForecastWithRetries(url, attempts = 3) {
+  async function loadForecastWithRetries(url, attempts = 3, expectedCity = null) {
     let lastError = null;
 
     for (let attempt = 1; attempt <= attempts; attempt++) {
@@ -316,6 +379,7 @@
       try {
         loaded = await loadPageWithIframe(url, 15000);
         await waitForForecastReady(loaded.doc, 12000);
+        ensureForecastIsMainCity(loaded.doc, expectedCity);
 
         const parsed = parseForecast(loaded.doc);
         const hasRainValues = parsed.rain.some(value =>
@@ -329,6 +393,8 @@
 
         return parsed;
       } catch (e) {
+        if (isBadForecastError(e)) throw e;
+
         lastError = e;
       } finally {
         if (loaded?.iframe) loaded.iframe.remove();
@@ -340,6 +406,42 @@
     }
 
     throw lastError || new Error('не удалось загрузить прогноз');
+  }
+
+  function ensureForecastIsMainCity(doc, expectedCity) {
+    const pageLocationText = getForecastLocationText(doc);
+
+    if (BAD_LOCATION_RE.test(pageLocationText)) {
+      throw makeBadForecastError(`прогноз относится не к основному городу: ${pageLocationText || expectedCity?.name || ''}`);
+    }
+  }
+
+  function getForecastLocationText(doc) {
+    const selectors = [
+      'h1',
+      'meta[property="og:title"]',
+      'meta[name="twitter:title"]'
+    ];
+    const parts = [doc.title || ''];
+
+    for (const selector of selectors) {
+      const node = doc.querySelector(selector);
+      const text = node ? cleanCityName(node.getAttribute('content') || node.innerText || node.textContent || '') : '';
+
+      if (text) parts.push(text);
+    }
+
+    return parts.join(' ').slice(0, 1000);
+  }
+
+  function makeBadForecastError(message) {
+    const error = new Error(message);
+    error.code = 'BAD_FORECAST_LOCATION';
+    return error;
+  }
+
+  function isBadForecastError(error) {
+    return error && error.code === 'BAD_FORECAST_LOCATION';
   }
 
   function loadPageWithIframe(url, timeout = 9000) {
@@ -405,21 +507,27 @@
     }
 
     while (rain.length < 10) rain.push('');
+    const wind = extractWindValuesFromDom(doc);
+    while (wind.length < 10) wind.push('');
+    const gust = extractGustValuesFromDom(doc);
+    while (gust.length < 10) gust.push('');
 
     return {
       days: extractForecastDays(doc, text),
       rain,
+      wind,
+      gust,
       weather: extractWeatherTexts(doc)
     };
   }
 
   function extractRainValuesFromDom(doc) {
     const rows = [
-      ...doc.querySelectorAll('[data-row*="precipitation"], .widget-row-chart-precipitation')
+      ...doc.querySelectorAll('[data-row="precipitation"], [data-row*="precipitation"], .widget-row-chart-precipitation')
     ];
 
     for (const row of rows) {
-      const values = [...row.querySelectorAll('.row-item')]
+      const values = getForecastRowItems(row)
         .map(el => normalizeForecastText(el.innerText || el.textContent || ''))
         .map(text => text.match(/\d+(?:[,.]\d+)?/)?.[0])
         .filter(Boolean)
@@ -433,6 +541,73 @@
         .slice(0, 10) || [];
 
       if (fromText.length >= 10) return fromText;
+    }
+
+    return [];
+  }
+
+  function getForecastRowItems(row) {
+    const directContainer = row.querySelector(':scope > .widget-items');
+    const directItems = directContainer
+      ? [...directContainer.children].filter(child => child.classList?.contains('row-item'))
+      : [];
+
+    if (directItems.length >= 10) return directItems.slice(0, 10);
+
+    const ownItems = [...row.children].filter(child => child.classList?.contains('row-item'));
+    if (ownItems.length >= 10) return ownItems.slice(0, 10);
+
+    const firstItemsContainer = row.querySelector('.widget-items');
+    const nestedItems = firstItemsContainer
+      ? [...firstItemsContainer.children].filter(child => child.classList?.contains('row-item'))
+      : [];
+
+    if (nestedItems.length >= 10) return nestedItems.slice(0, 10);
+
+    return [...row.querySelectorAll('.row-item')].slice(0, 10);
+  }
+
+  function extractWindValuesFromDom(doc) {
+    return extractWindMetricValuesFromDom(doc, 'wind-speed');
+  }
+
+  function extractGustValuesFromDom(doc) {
+    return extractWindMetricValuesFromDom(doc, 'wind-gust');
+  }
+
+  function extractWindMetricValuesFromDom(doc, metricClass) {
+    const rows = [
+      ...doc.querySelectorAll('[data-row="wind"], .widget-row-wind')
+    ];
+
+    for (const row of rows) {
+      const items = getForecastRowItems(row);
+      const values = items
+        .map(item => {
+          const speed = item.querySelector(`.${metricClass} speed-value[value], [class*="${metricClass}"] speed-value[value]`);
+          const visibleValue = normalizeForecastText(speed?.innerText || speed?.textContent || '');
+          const visibleMatch = visibleValue.match(/\d+(?:[,.]\d+)?/);
+
+          if (visibleMatch) {
+            return Number(visibleMatch[0].replace(',', '.'));
+          }
+
+          const attrValue = speed?.getAttribute('value');
+
+          if (attrValue !== null && attrValue !== undefined && attrValue !== '') {
+            return Number(String(attrValue).replace(',', '.'));
+          }
+
+          if (metricClass !== 'wind-speed') return NaN;
+
+          const text = normalizeForecastText(item.innerText || item.textContent || '');
+          const match = text.match(/\d+(?:[,.]\d+)?/);
+
+          return match ? Number(match[0].replace(',', '.')) : NaN;
+        })
+        .filter(value => Number.isFinite(value));
+
+      if (values.length >= 10) return values.slice(0, 10);
     }
 
     return [];
@@ -603,8 +778,10 @@
         const hasWeather = extractWeatherTexts(doc).filter(Boolean).length >= 10;
         const hasRain = doc.body?.innerText?.includes('Осадки в жидком эквиваленте') ||
           extractRainValuesFromDom(doc).length >= 10;
+        const hasWind = extractWindValuesFromDom(doc).length >= 10 &&
+          extractGustValuesFromDom(doc).length >= 10;
 
-        if ((hasWeather && hasRain) || Date.now() - started >= timeout) {
+        if ((hasWeather && hasRain && hasWind) || Date.now() - started >= timeout) {
           resolve();
           return;
         }
@@ -641,11 +818,12 @@
     ctx.font = '12px Arial';
     ctx.fillText('Красным выделены дни с осадками больше 5 мм', 30, 66);
 
-    const values = parsed.rain.map(value => {
+    const rainValues = parsed.rain.map(value => {
       const number = Number(value);
       return Number.isFinite(number) ? number : 0;
     });
-    const maxValue = Math.max(5, ...values);
+
+    const maxValue = Math.max(5, ...rainValues);
     const chartLeft = 58;
     const chartTop = 92;
     const chartWidth = width - 102;
@@ -670,7 +848,7 @@
     const gap = 14;
     const barWidth = (chartWidth - gap * 9) / 10;
 
-    values.forEach((value, index) => {
+    rainValues.forEach((value, index) => {
       const x = chartLeft + index * (barWidth + gap);
       const barHeight = value > 0 ? Math.max(5, (value / maxValue) * chartHeight) : 2;
       const y = baseline - barHeight;
@@ -709,6 +887,136 @@
     };
   }
 
+  function makeWindChartImage(city, parsed) {
+    const width = 980;
+    const height = 360;
+    const canvas = document.createElement('canvas');
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(ratio, ratio);
+    ctx.fillStyle = '#f6f8fb';
+    ctx.fillRect(0, 0, width, height);
+
+    roundRect(ctx, 8, 8, width - 16, height - 16, 12, '#ffffff');
+
+    ctx.fillStyle = '#222';
+    ctx.font = 'bold 22px Arial';
+    ctx.fillText(`Ветер и порывы по дням: ${city}`, 30, 44);
+
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '12px Arial';
+    ctx.fillText('Красным выделены значения больше 10 м/с', 30, 66);
+
+    const windValues = (parsed.wind || []).map(value => {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : 0;
+    });
+    while (windValues.length < 10) windValues.push(0);
+
+    const gustValues = (parsed.gust || []).map(value => {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : 0;
+    });
+    while (gustValues.length < 10) gustValues.push(0);
+
+    const maxValue = Math.max(10, ...windValues, ...gustValues);
+    const chartLeft = 58;
+    const chartTop = 92;
+    const chartWidth = width - 102;
+    const chartHeight = 180;
+    const baseline = chartTop + chartHeight;
+
+    ctx.strokeStyle = '#dce4ea';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#7b8790';
+    ctx.font = '11px Arial';
+
+    for (let i = 0; i <= 4; i++) {
+      const y = chartTop + (chartHeight / 4) * i;
+      const value = maxValue - (maxValue / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(chartLeft, y);
+      ctx.lineTo(chartLeft + chartWidth, y);
+      ctx.stroke();
+      ctx.fillText(formatWind(value), 20, y + 3);
+    }
+
+    const groupGap = 14;
+    const groupWidth = (chartWidth - groupGap * 9) / 10;
+    const innerGap = 5;
+    const barWidth = (groupWidth - innerGap) / 2;
+
+    windValues.slice(0, 10).forEach((windValue, index) => {
+      const groupX = chartLeft + index * (groupWidth + groupGap);
+      const gustValue = gustValues[index] || 0;
+
+      drawWindBar(ctx, {
+        x: groupX,
+        baseline,
+        chartHeight,
+        maxValue,
+        barWidth,
+        value: windValue,
+        colorTop: '#fbbf24',
+        colorBottom: '#d97706'
+      });
+
+      drawWindBar(ctx, {
+        x: groupX + barWidth + innerGap,
+        baseline,
+        chartHeight,
+        maxValue,
+        barWidth,
+        value: gustValue,
+        colorTop: '#a78bfa',
+        colorBottom: '#7c3aed'
+      });
+
+      ctx.fillStyle = '#222';
+      ctx.font = '12px Arial';
+      ctx.textAlign = 'center';
+      const day = parsed.days[index] || '';
+      const parts = day.split(' ');
+      ctx.fillText(parts.slice(0, 2).join(' '), groupX + groupWidth / 2, baseline + 22);
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '11px Arial';
+      ctx.fillText(parts.slice(2).join(' '), groupX + groupWidth / 2, baseline + 40);
+    });
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#6b7280';
+    ctx.font = '12px Arial';
+    ctx.fillText('Оранжевый столбец: ветер. Фиолетовый столбец: порывы. Единица измерения: м/с за сутки.', 30, height - 28);
+
+    return {
+      dataUrl: canvas.toDataURL('image/png'),
+      width,
+      height
+    };
+  }
+
+  function drawWindBar(ctx, options) {
+    const value = Number(options.value) || 0;
+    const barHeight = value > 0 ? Math.max(5, (value / options.maxValue) * options.chartHeight) : 2;
+    const y = options.baseline - barHeight;
+    const isStrong = value > 10;
+    const gradient = ctx.createLinearGradient(0, y, 0, options.baseline);
+    gradient.addColorStop(0, options.colorTop);
+    gradient.addColorStop(1, options.colorBottom);
+
+    roundRect(ctx, options.x, y, options.barWidth, barHeight, 7, gradient);
+
+    ctx.fillStyle = isStrong ? '#c00000' : '#0070c0';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(formatWind(value), options.x + options.barWidth / 2, y - 7);
+  }
+
   function roundRect(ctx, x, y, width, height, radius, fillStyle) {
     const r = Math.min(radius, width / 2, height / 2);
 
@@ -725,6 +1033,10 @@
 
   function formatRain(value) {
     return Number(value).toFixed(1).replace('.', ',');
+  }
+
+  function formatWind(value) {
+    return String(Math.round(Number(value))).replace('.', ',');
   }
 
   function buildDates() {
@@ -747,7 +1059,7 @@
 
   async function exportExcel(blocks) {
     const workbook = new ExcelJS.Workbook();
-    const ws = workbook.addWorksheet('Осадки', {
+    const ws = workbook.addWorksheet('Отчет', {
       views: [{ showGridLines: false }]
     });
 
@@ -792,11 +1104,18 @@
     };
     ws.getCell(1, 1).alignment = { horizontal: 'left', vertical: 'middle' };
     ws.getRow(1).height = 22;
+    let row = writeFailRows(ws, blocks);
+    const blockGapRows = 1;
 
-    let row = 3;
-    const blockGapRows = 2;
+    for (let blockIndex = 0; blockIndex < blocks.length; blockIndex++) {
+      const block = blocks[blockIndex];
 
-    for (const block of blocks) {
+      if (blockIndex > 0) {
+        addDashedSeparator(ws, row);
+        ws.getRow(row).height = 10;
+        row += 2;
+      }
+
       ws.getRow(row).height = 18;
 
       ws.getCell(row, 1).value = block.url
@@ -828,22 +1147,34 @@
 
       const cityRow = row + 1;
       const rainRow = row + 2;
+      const windRow = row + 3;
+      const gustRow = row + 4;
 
       ws.getRow(cityRow).height = 22;
       ws.getRow(rainRow).height = 22;
+      ws.getRow(windRow).height = 22;
+      ws.getRow(gustRow).height = 22;
 
       ws.getCell(cityRow, 1).value = block.city;
       ws.getCell(rainRow, 1).value = 'Осадки, мм';
+      ws.getCell(windRow, 1).value = 'Ветер, м/с';
+      ws.getCell(gustRow, 1).value = 'Порывы, м/с';
 
       for (let i = 0; i < 10; i++) {
         const rainNumber = Number(block.rain[i]);
+        const windNumber = Number(block.wind?.[i]);
+        const gustNumber = Number(block.gust?.[i]);
 
         ws.getCell(cityRow, i + 2).value = block.days[i];
         ws.getCell(rainRow, i + 2).value = Number.isFinite(rainNumber) ? rainNumber : '';
         ws.getCell(rainRow, i + 2).numFmt = '0.0';
+        ws.getCell(windRow, i + 2).value = Number.isFinite(windNumber) ? windNumber : '';
+        ws.getCell(windRow, i + 2).numFmt = '0';
+        ws.getCell(gustRow, i + 2).value = Number.isFinite(gustNumber) ? gustNumber : '';
+        ws.getCell(gustRow, i + 2).numFmt = '0';
       }
 
-      ws.mergeCells(cityRow, 12, rainRow, 12);
+      ws.mergeCells(cityRow, 12, gustRow, 12);
       ws.getCell(cityRow, 12).value = block.status;
 
       for (let c = 1; c <= 12; c++) {
@@ -869,7 +1200,7 @@
             argb: c === 1
               ? 'FFFFE3C7'
               : c === 12
-                ? 'FFF4FBF6'
+                ? 'FFFFFFFF'
                 : 'FFF8FAFC'
           }
         };
@@ -907,12 +1238,77 @@
                 : 'FFFFFFFF'
           }
         };
+
+        const windCell = ws.getCell(windRow, c);
+        windCell.border = dataBorder;
+        windCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        windCell.font = {
+          name: 'Arial',
+          size: 10,
+          color: { argb: 'FF000000' }
+        };
+
+        const windValue = c >= 2 && c <= 11
+          ? Number(block.wind?.[c - 2])
+          : 0;
+
+        windCell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: {
+            argb: c >= 2 && c <= 11
+              ? windValue > 10
+                ? 'FFFFD6D6'
+                : 'FFE1F0FB'
+              : c === 1
+                ? 'FFF8FAFC'
+                : 'FFFFFFFF'
+          }
+        };
+
+        const gustCell = ws.getCell(gustRow, c);
+        gustCell.border = dataBorder;
+        gustCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        gustCell.font = {
+          name: 'Arial',
+          size: 10,
+          color: { argb: 'FF000000' }
+        };
+
+        const gustValue = c >= 2 && c <= 11
+          ? Number(block.gust?.[c - 2])
+          : 0;
+
+        gustCell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: {
+            argb: c >= 2 && c <= 11
+              ? gustValue > 10
+                ? 'FFFFD6D6'
+                : 'FFE1F0FB'
+              : c === 1
+                ? 'FFF8FAFC'
+                : 'FFFFFFFF'
+          }
+        };
       }
 
-      row += 4;
+      const statusCell = ws.getCell(cityRow, 12);
+      statusCell.font = {
+        name: 'Arial',
+        size: 10,
+        bold: true,
+        color: { argb: block.status === 'OK' ? 'FF00B050' : 'FFFF0000' }
+      };
+      statusCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      statusCell.border = dataBorder;
+
+      row += 6;
 
       const visualTopRow = row - 1;
-      let visualHeight = 0;
+      let visualRows = 0;
+      let nextChartTopRow = visualTopRow;
 
       if (block.rainChart) {
         const chartId = workbook.addImage({
@@ -928,21 +1324,41 @@
           ext: { width: chartWidth, height: chartHeight }
         });
 
-        visualHeight = Math.max(visualHeight, chartHeight);
+        const chartRows = pixelsToWorksheetRows(chartHeight);
+        nextChartTopRow = visualTopRow + chartRows + 1;
+        visualRows += chartRows;
       }
 
-      if (visualHeight > 0) {
-        row += Math.max(1, Math.ceil(visualHeight / 20) - 1);
+      if (block.windChart) {
+        const chartId = workbook.addImage({
+          base64: block.windChart.dataUrl,
+          extension: 'png'
+        });
+
+        const chartWidth = block.windChart.width || 980;
+        const chartHeight = block.windChart.height || 360;
+
+        ws.addImage(chartId, {
+          tl: { col: 0, row: nextChartTopRow },
+          ext: { width: chartWidth, height: chartHeight }
+        });
+
+        visualRows += (block.rainChart ? 1 : 0) + pixelsToWorksheetRows(chartHeight);
+      }
+
+      if (visualRows > 0) {
+        row += visualRows;
       }
 
       row += blockGapRows;
     }
 
     const osadkiDays = getOrderedDays(blocks);
-    const listFilter = buildListSheet(workbook, blocks, dataBorder, osadkiDays);
+    const rainFilter = buildListSheet(workbook, blocks, dataBorder, osadkiDays);
+    const gustFilter = buildGustSheet(workbook, blocks, dataBorder, osadkiDays);
 
     let buffer = await workbook.xlsx.writeBuffer();
-    buffer = await applyCurrentDayFilter(buffer, listFilter);
+    buffer = await applyCurrentDayFilters(buffer, [rainFilter, gustFilter]);
 
     saveAs(
       new Blob([buffer]),
@@ -950,8 +1366,44 @@
     );
   }
 
+  function writeFailRows(ws, blocks) {
+    const failedBlocks = blocks.filter(block => block.status === 'FAIL');
+
+    if (!failedBlocks.length) return 3;
+
+    let row = 2;
+
+    for (const block of failedBlocks) {
+      ws.mergeCells(row, 1, row, 5);
+      const cell = ws.getCell(row, 1);
+      cell.value = `! ${block.city} - FAIL !`;
+      cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFF0000' } };
+      cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      ws.getRow(row).height = 20;
+      row += 1;
+    }
+
+    addDashedSeparator(ws, row - 1);
+
+    return row + 1;
+  }
+
+  function pixelsToWorksheetRows(pixels) {
+    return Math.max(1, Math.ceil(Number(pixels || 0) / 20));
+  }
+
+  function addDashedSeparator(ws, row, fromColumn = 1, toColumn = 12) {
+    for (let column = fromColumn; column <= toColumn; column++) {
+      const cell = ws.getCell(row, column);
+      cell.border = {
+        ...cell.border,
+        bottom: { style: 'mediumDashed', color: { argb: 'FF64748B' } }
+      };
+    }
+  }
+
   function buildListSheet(workbook, blocks, dataBorder, osadkiDays) {
-    const ws = workbook.addWorksheet('Список', {
+    const ws = workbook.addWorksheet('Осадки', {
       views: [{ showGridLines: false }]
     });
 
@@ -978,14 +1430,53 @@
     const lastRow = writeListTable(ws, listRows, 4, dataBorder, true, currentDate);
 
     return {
-      sheetName: 'Список',
+      sheetName: 'Осадки',
       ref: `A4:D${Math.max(4, lastRow - 1)}`,
       currentDate
     };
   }
 
-  function writeListTable(ws, items, headerRow, dataBorder, withFilter, currentDate) {
-    const headers = ['Дата', 'Город', 'Осадки', ''];
+  function buildGustSheet(workbook, blocks, dataBorder, osadkiDays) {
+    const ws = workbook.addWorksheet('Порывы', {
+      views: [{ showGridLines: false }]
+    });
+
+    ws.columns = [
+      { width: 18 },
+      { width: 24 },
+      { width: 58 },
+      { width: 9 }
+    ];
+
+    ws.mergeCells(1, 1, 1, 4);
+    ws.getCell(1, 1).value = 'Города с порывами больше 10 м/с';
+    ws.getCell(1, 1).font = { name: 'Arial', size: 13, bold: true, color: { argb: 'FF222222' } };
+    ws.getCell(1, 1).alignment = { horizontal: 'left', vertical: 'middle' };
+    ws.getRow(1).height = 24;
+
+    const listRows = buildStrongGustRows(blocks, osadkiDays);
+    const currentDay = osadkiDays[0] || buildDates()[0];
+    const currentDate = makeExcelDateFromForecastDay(currentDay, 0);
+
+    ws.getCell(2, 1).value = `По умолчанию показан текущий день: ${formatShortDate(currentDay)}. Выберите другую дату через фильтр.`;
+    ws.getCell(2, 1).font = { name: 'Arial', size: 10, color: { argb: 'FF6B7280' } };
+
+    const lastRow = writeListTable(ws, listRows, 4, dataBorder, true, currentDate, {
+      valueHeader: 'Порывы',
+      emptyText: 'Нет дней с порывами больше 10 м/с',
+      valueFill: 'FFFFD6D6',
+      formatValue: item => makeWindListText(item.weather, item.gust)
+    });
+
+    return {
+      sheetName: 'Порывы',
+      ref: `A4:D${Math.max(4, lastRow - 1)}`,
+      currentDate
+    };
+  }
+
+  function writeListTable(ws, items, headerRow, dataBorder, withFilter, currentDate, options = {}) {
+    const headers = ['Дата', 'Город', options.valueHeader || 'Осадки', ''];
 
     headers.forEach((header, index) => {
       const cell = ws.getCell(headerRow, index + 1);
@@ -1004,7 +1495,7 @@
 
     if (!items.length) {
       ws.mergeCells(row, 1, row, 4);
-      ws.getCell(row, 1).value = 'Нет дней с осадками больше 5 мм';
+      ws.getCell(row, 1).value = options.emptyText || 'Нет дней с осадками больше 5 мм';
       ws.getCell(row, 1).font = { name: 'Arial', size: 10, color: { argb: 'FF6B7280' } };
       ws.getCell(row, 1).alignment = { horizontal: 'left', vertical: 'middle' };
       ws.getCell(row, 1).border = dataBorder;
@@ -1018,7 +1509,9 @@
         ws.getCell(row, 1).numFmt = 'dd.mm.yyyy';
       }
       ws.getCell(row, 2).value = item.city;
-      ws.getCell(row, 3).value = makeRainListText(item.weather, item.rain);
+      ws.getCell(row, 3).value = typeof options.formatValue === 'function'
+        ? options.formatValue(item)
+        : makeRainListText(item.weather, item.rain);
       ws.getCell(row, 4).value = item.url
         ? {
           text: '🔗',
@@ -1059,7 +1552,7 @@
           pattern: 'solid',
           fgColor: {
             argb: c === 3
-              ? 'FFFFD6D6'
+              ? options.valueFill || 'FFFFD6D6'
               : row % 2 === 0
                 ? 'FFFFFFFF'
                 : 'FFF8FAFC'
@@ -1086,6 +1579,13 @@
     const value = formatRain(rain);
 
     return text ? `${text}, ${value} мм` : `${value} мм`;
+  }
+
+  function makeWindListText(weather, wind) {
+    const text = cleanWeatherText(weather || '').toLowerCase();
+    const value = `${formatWind(wind)} м/с`;
+
+    return text ? `${text}, ${value}` : value;
   }
 
   function formatShortDate(day, fallbackIndex = 0) {
@@ -1121,6 +1621,40 @@
           sortKey: dayDate ? dayDate.getTime() : Number.MAX_SAFE_INTEGER + dayIndex,
           city: block.city,
           rain,
+          weather: block.weather?.[dayIndex] || '',
+          url: block.url,
+          dayIndex
+        });
+      }
+    }
+
+    return items.sort((a, b) =>
+      a.sortKey - b.sortKey ||
+      String(a.city).localeCompare(String(b.city), 'ru')
+    );
+  }
+
+  function buildStrongGustRows(blocks, osadkiDays) {
+    const items = [];
+    const fallbackDays = buildDates();
+
+    for (const block of blocks) {
+      for (let dayIndex = 0; dayIndex < 10; dayIndex++) {
+        const gust = Number(block.gust?.[dayIndex]);
+
+        if (!Number.isFinite(gust) || gust <= 10) continue;
+
+        const day = osadkiDays?.[dayIndex] || block.days?.[dayIndex] || fallbackDays[dayIndex];
+        const dayDate = makeExcelDateFromForecastDay(day, dayIndex);
+        const dateText = formatShortDate(day, dayIndex);
+
+        items.push({
+          day,
+          dayDate,
+          dateText,
+          sortKey: dayDate ? dayDate.getTime() : Number.MAX_SAFE_INTEGER + dayIndex,
+          city: block.city,
+          gust,
           weather: block.weather?.[dayIndex] || '',
           url: block.url,
           dayIndex
@@ -1177,6 +1711,16 @@
       a.getUTCFullYear() === b.getUTCFullYear() &&
       a.getUTCMonth() === b.getUTCMonth() &&
       a.getUTCDate() === b.getUTCDate();
+  }
+
+  async function applyCurrentDayFilters(buffer, filters) {
+    let result = buffer;
+
+    for (const filter of filters.filter(Boolean)) {
+      result = await applyCurrentDayFilter(result, filter);
+    }
+
+    return result;
   }
 
   async function applyCurrentDayFilter(buffer, filter) {
