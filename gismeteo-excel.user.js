@@ -1621,7 +1621,7 @@
           : 1
       };
       ws.getCell(row, 14).value = {
-        formula: `IF(AND(M${row}=1,INT(H${row})=INT($F$4)),SUMPRODUCT(($M$${rawStartRow}:M${row}=1)*(INT($H$${rawStartRow}:H${row})=INT($F$4))),"")`,
+        formula: `IF(AND(M${row}=1,INT(H${row})=INT($A$4)),SUMPRODUCT(($M$${rawStartRow}:M${row}=1)*(INT($H$${rawStartRow}:H${row})=INT($A$4))),"")`,
         result: initialRainGustVisible(item.city, fixedCitySet, reportCitySet) && isSameExcelDay(item.dayDate, currentDate)
           ? initialVisibleDateIndex(items, index, fixedCitySet, currentDate)
           : ''
