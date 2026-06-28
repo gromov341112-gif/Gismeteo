@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Gismeteo Precipitation
 // @namespace    gismeteo-excel
-// @version      2.0
+// @version      2.1
 // @description  Export Gismeteo 10-day precipitation, wind, and gust forecasts to a styled Excel report with daily charts and filtered alert lists.
 // @author       HARIBB
 // @match        https://www.gismeteo.ru/*
@@ -20,18 +20,38 @@
   'use strict';
 
   const STORAGE_KEY = 'gm_city_list_v45';
+  const FIXED_LIST_STORAGE_KEY = 'gm_fixed_osadki_gust_city_list_v1';
   const BASE = 'https://www.gismeteo.ru';
-  const APP_VERSION = '2.0';
+  const APP_VERSION = '2.1';
   const APP_TITLE = `Gismeteo Precipitation v${APP_VERSION}`;
   const PANEL_COLLAPSED_WIDTH = 'max-content';
-  const PANEL_EXPANDED_WIDTH = '306px';
+  const PANEL_EXPANDED_WIDTH = '336px';
   const LOCATION_WORDS_RE = /^(?:погода\s+)?(?:в|во|на|для)\s+/i;
   const FORECAST_TAIL_RE = /\s+(?:на\s+(?:10\s+дней|3\s+дня|2\s+недели|месяц|неделю|выходные)|сегодня|завтра).*$/i;
   const BAD_LOCATION_RE = /аэропорт|airport|аэродром|aeroport|авиабаза|внуково|шереметьево|домодедово|спиченково|остафьево/i;
   const WEATHER_TEXT_RE = /\b(?:ясно|облачно|пасмурно|дождь|дождя|дождем|дождём|дожди|гроз[а-я]*|снег[а-я]*|туман[а-я]*|град|ливень|ливни|морось|переменная)\b/i;
   let collapsed = true;
+  let collectionLocked = false;
 
   createPanel();
+
+  window.addEventListener('beforeunload', event => {
+    if (!collectionLocked) return;
+
+    event.preventDefault();
+    event.returnValue = '';
+  });
+
+  window.addEventListener('keydown', event => {
+    if (!collectionLocked) return;
+
+    const isReloadKey = event.key === 'F5' || ((event.ctrlKey || event.metaKey) && event.key?.toLowerCase() === 'r');
+
+    if (isReloadKey) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, true);
 
   function createPanel() {
     const style = document.createElement('style');
@@ -69,7 +89,15 @@
       </div>
 
       <div id="gmBody" style="display:none;padding:8px;">
-        <textarea id="gmCities" style="
+        <div style="margin:0 0 4px;font-size:11px;color:#cbd5e1;font-weight:bold;">Отчет №1</div>
+        <textarea id="gmCities" placeholder="Осадки по городам" style="
+          width:100%;height:86px;box-sizing:border-box;resize:vertical;
+          padding:7px;font-size:12px;background:#020617;color:#e5e7eb;
+          border:1px solid #334155;border-radius:7px;outline:none;
+        "></textarea>
+
+        <div style="margin:8px 0 4px;font-size:11px;color:#cbd5e1;font-weight:bold;">Отчет №2</div>
+        <textarea id="gmFixedCities" placeholder="Порывы по фиксированным городам" style="
           width:100%;height:86px;box-sizing:border-box;resize:vertical;
           padding:7px;font-size:12px;background:#020617;color:#e5e7eb;
           border:1px solid #334155;border-radius:7px;outline:none;
@@ -88,7 +116,9 @@
     document.body.appendChild(box);
 
     const textarea = document.getElementById('gmCities');
+    const fixedTextarea = document.getElementById('gmFixedCities');
     textarea.value = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('gm_city_list_v44') || '';
+    fixedTextarea.value = localStorage.getItem(FIXED_LIST_STORAGE_KEY) || '';
 
     document.getElementById('gmHeader').onclick = () => {
       collapsed = !collapsed;
@@ -98,77 +128,106 @@
 
     document.getElementById('gmRun').onclick = async () => {
       const cities = textarea.value.split('\n').map(x => x.trim()).filter(Boolean);
+      const fixedCities = dedupeCityList(fixedTextarea.value.split('\n').map(x => x.trim()).filter(Boolean));
+      const collectionCities = mergeCityLists(cities, fixedCities);
       localStorage.setItem(STORAGE_KEY, textarea.value);
+      localStorage.setItem(FIXED_LIST_STORAGE_KEY, fixedTextarea.value);
 
-      if (!cities.length) {
+      if (!collectionCities.length) {
         alert('Вставь список городов');
         return;
       }
 
-      await run(cities);
+      await run(collectionCities, fixedCities, cities);
     };
   }
 
-  async function run(cities) {
+  function mergeCityLists(...lists) {
+    return dedupeCityList(lists.flat());
+  }
+
+  function dedupeCityList(cities) {
+    const seen = new Set();
+    const result = [];
+
+    for (const city of cities) {
+      const cleanCity = cleanCityName(city);
+      const key = normalizeLocation(cleanCity);
+
+      if (!key || seen.has(key)) continue;
+
+      seen.add(key);
+      result.push(cleanCity);
+    }
+
+    return result;
+  }
+
+  async function run(cities, fixedCities = [], reportCities = cities) {
     const btn = document.getElementById('gmRun');
     const status = document.getElementById('gmStatus');
 
+    collectionLocked = true;
     btn.disabled = true;
     btn.textContent = 'Сбор...';
 
     const blocks = [];
 
-    for (let i = 0; i < cities.length; i++) {
-      const rawCity = cities[i];
+    try {
+      for (let i = 0; i < cities.length; i++) {
+        const rawCity = cities[i];
 
-      try {
-        status.textContent = `${i + 1}/${cities.length}: поиск ${rawCity}`;
+        try {
+          status.textContent = `${i + 1}/${cities.length}: поиск ${rawCity}`;
 
-        const resolved = await loadCityForecast(rawCity, found => {
-          status.textContent = `${i + 1}/${cities.length}: прогноз ${found.name}`;
-        });
-        const { found, forecastUrl, parsed } = resolved;
-        const rainChart = makeRainChartImage(found.name || rawCity, parsed);
-        const windChart = makeWindChartImage(found.name || rawCity, parsed);
+          const resolved = await loadCityForecast(rawCity, found => {
+            status.textContent = `${i + 1}/${cities.length}: прогноз ${found.name}`;
+          });
+          const { found, forecastUrl, parsed } = resolved;
+          const rainChart = makeRainChartImage(found.name || rawCity, parsed);
+          const windChart = makeWindChartImage(found.name || rawCity, parsed);
 
-        blocks.push({
-          city: found.name || rawCity,
-          url: forecastUrl,
-          days: parsed.days,
-          rain: parsed.rain,
-          wind: parsed.wind,
-          gust: parsed.gust,
-          weather: parsed.weather,
-          rainChart,
-          windChart,
-          status: 'OK'
-        });
-      } catch (e) {
-        console.error(e);
+          blocks.push({
+            city: found.name || rawCity,
+            url: forecastUrl,
+            days: parsed.days,
+            rain: parsed.rain,
+            wind: parsed.wind,
+            gust: parsed.gust,
+            weather: parsed.weather,
+            rainChart,
+            windChart,
+            status: 'OK'
+          });
+        } catch (e) {
+          console.error(e);
 
-        blocks.push({
-          city: rawCity,
-          url: '',
-          days: buildDates(),
-          rain: Array(10).fill(''),
-          wind: Array(10).fill(''),
-          gust: Array(10).fill(''),
-          weather: Array(10).fill(''),
-          rainChart: null,
-          windChart: null,
-          status: 'FAIL'
-        });
+          blocks.push({
+            city: rawCity,
+            url: '',
+            days: buildDates(),
+            rain: Array(10).fill(''),
+            wind: Array(10).fill(''),
+            gust: Array(10).fill(''),
+            weather: Array(10).fill(''),
+            rainChart: null,
+            windChart: null,
+            status: 'FAIL'
+          });
+        }
+
+        await sleep(1200);
       }
 
-      await sleep(1200);
+      status.textContent = 'Формирую Excel...';
+      await exportExcel(blocks, fixedCities, reportCities);
+
+      status.textContent = `Готово: ${cities.length}`;
+    } finally {
+      collectionLocked = false;
+      btn.disabled = false;
+      btn.textContent = 'Собрать';
     }
-
-    status.textContent = 'Формирую Excel...';
-    await exportExcel(blocks);
-
-    status.textContent = `Готово: ${cities.length}`;
-    btn.disabled = false;
-    btn.textContent = 'Собрать';
   }
 
   async function loadCityForecast(city, onAttempt) {
@@ -1057,8 +1116,10 @@
     return result;
   }
 
-  async function exportExcel(blocks) {
+  async function exportExcel(blocks, fixedCities = [], reportCities = []) {
     const workbook = new ExcelJS.Workbook();
+    workbook.calcProperties = workbook.calcProperties || {};
+    workbook.calcProperties.fullCalcOnLoad = true;
     const ws = workbook.addWorksheet('Отчет', {
       views: [{ showGridLines: false }]
     });
@@ -1354,8 +1415,8 @@
     }
 
     const osadkiDays = getOrderedDays(blocks);
-    const rainFilter = buildListSheet(workbook, blocks, dataBorder, osadkiDays);
-    const gustFilter = buildGustSheet(workbook, blocks, dataBorder, osadkiDays);
+    const rainFilter = buildListSheet(workbook, blocks, dataBorder, osadkiDays, reportCities);
+    const gustFilter = buildGustSheet(workbook, blocks, dataBorder, osadkiDays, fixedCities, reportCities);
 
     let buffer = await workbook.xlsx.writeBuffer();
     buffer = await applyCurrentDayFilters(buffer, [rainFilter, gustFilter]);
@@ -1369,7 +1430,11 @@
   function writeFailRows(ws, blocks) {
     const failedBlocks = blocks.filter(block => block.status === 'FAIL');
 
-    if (!failedBlocks.length) return 3;
+    if (!failedBlocks.length) {
+      addDashedSeparator(ws, 2);
+      ws.getRow(2).height = 10;
+      return 4;
+    }
 
     let row = 2;
 
@@ -1402,7 +1467,7 @@
     }
   }
 
-  function buildListSheet(workbook, blocks, dataBorder, osadkiDays) {
+  function buildListSheet(workbook, blocks, dataBorder, osadkiDays, reportCities = []) {
     const ws = workbook.addWorksheet('Осадки', {
       views: [{ showGridLines: false }]
     });
@@ -1420,14 +1485,17 @@
     ws.getCell(1, 1).alignment = { horizontal: 'left', vertical: 'middle' };
     ws.getRow(1).height = 24;
 
-    const listRows = buildStrongRainRows(blocks, osadkiDays);
+    const reportCitySet = buildFixedCitySet(reportCities);
+    const listRows = buildStrongRainRows(blocks, osadkiDays, reportCitySet);
     const currentDay = osadkiDays[0] || buildDates()[0];
     const currentDate = makeExcelDateFromForecastDay(currentDay, 0);
 
     ws.getCell(2, 1).value = `По умолчанию показан текущий день: ${formatShortDate(currentDay)}. Выберите другую дату через фильтр.`;
     ws.getCell(2, 1).font = { name: 'Arial', size: 10, color: { argb: 'FF6B7280' } };
 
-    const lastRow = writeListTable(ws, listRows, 4, dataBorder, true, currentDate);
+    const lastRow = writeListTable(ws, listRows, 4, dataBorder, true, currentDate, {
+      valueFill: 'FFFFD6D6'
+    });
 
     return {
       sheetName: 'Осадки',
@@ -1436,8 +1504,8 @@
     };
   }
 
-  function buildGustSheet(workbook, blocks, dataBorder, osadkiDays) {
-    const ws = workbook.addWorksheet('Порывы', {
+  function buildGustSheet(workbook, blocks, dataBorder, osadkiDays, fixedCities = [], reportCities = []) {
+    const ws = workbook.addWorksheet('Осадки-Порывы', {
       views: [{ showGridLines: false }]
     });
 
@@ -1445,34 +1513,264 @@
       { width: 18 },
       { width: 24 },
       { width: 58 },
-      { width: 9 }
+      { width: 9 },
+      { width: 3 },
+      { width: 28 },
+      { width: 1 },
+      { width: 14 },
+      { width: 24 },
+      { width: 58 },
+      { width: 9 },
+      { width: 8 },
+      { width: 8 },
+      { width: 8 },
+      { width: 8 },
+      { width: 14 }
     ];
+    ws.getColumn(7).hidden = true;
+    ws.getColumn(8).hidden = true;
+    ws.getColumn(9).hidden = true;
+    ws.getColumn(10).hidden = true;
+    ws.getColumn(11).hidden = true;
+    ws.getColumn(12).hidden = true;
+    ws.getColumn(13).hidden = true;
+    ws.getColumn(14).hidden = true;
+    ws.getColumn(15).hidden = true;
+    ws.getColumn(16).hidden = true;
 
     ws.mergeCells(1, 1, 1, 4);
-    ws.getCell(1, 1).value = 'Города с порывами больше 10 м/с';
+    ws.getCell(1, 1).value = 'Города с осадками и порывами больше 10 м/с';
     ws.getCell(1, 1).font = { name: 'Arial', size: 13, bold: true, color: { argb: 'FF222222' } };
     ws.getCell(1, 1).alignment = { horizontal: 'left', vertical: 'middle' };
     ws.getRow(1).height = 24;
 
-    const listRows = buildStrongGustRows(blocks, osadkiDays);
     const currentDay = osadkiDays[0] || buildDates()[0];
     const currentDate = makeExcelDateFromForecastDay(currentDay, 0);
+    const fixedList = dedupeCityList(fixedCities);
+    const fixedCitySet = buildFixedCitySet(fixedList);
+    const reportList = dedupeCityList(reportCities);
+    const reportCitySet = buildFixedCitySet(reportList);
+    const sourceCitySet = mergeCitySets(reportCitySet, fixedCitySet);
+    const cityOrder = buildFixedCityOrderMap([...fixedList, ...reportList]);
+    const listRows = buildRainGustRows(blocks, osadkiDays, sourceCitySet, cityOrder);
 
-    ws.getCell(2, 1).value = `По умолчанию показан текущий день: ${formatShortDate(currentDay)}. Выберите другую дату через фильтр.`;
+    ws.getCell(2, 1).value = `По умолчанию выбран текущий день: ${formatShortDate(currentDay)}. Выберите другую дату в поле ниже.`;
     ws.getCell(2, 1).font = { name: 'Arial', size: 10, color: { argb: 'FF6B7280' } };
 
-    const lastRow = writeListTable(ws, listRows, 4, dataBorder, true, currentDate, {
-      valueHeader: 'Порывы',
-      emptyText: 'Нет дней с порывами больше 10 м/с',
-      valueFill: 'FFFFD6D6',
-      formatValue: item => makeWindListText(item.weather, item.gust)
+    writeRainGustDatePicker(ws, osadkiDays, currentDay, dataBorder);
+    writeFixedCityBox(ws, fixedList, dataBorder);
+    const headerRow = getRainGustTableHeaderRow(fixedList);
+    const lastRow = writeDynamicRainGustTable(ws, listRows, fixedCitySet, reportCitySet, headerRow, dataBorder, currentDate, {
+      valueHeader: 'Осадки/Порывы',
+      emptyText: 'Нет дней с осадками или порывами',
+      getValueFill: item => item.rain > 5 || item.gust > 10 ? 'FFFFD6D6' : null,
+      formatValue: item => makeRainGustListText(item.weather, item.rain, item.gust),
+      fixedRowsCount: fixedList.length
     });
 
     return {
-      sheetName: 'Порывы',
-      ref: `A4:D${Math.max(4, lastRow - 1)}`,
-      currentDate
+      sheetName: 'Осадки-Порывы',
+      ref: `A${headerRow}:D${Math.max(headerRow, lastRow - 1)}`,
+      currentDate: null
     };
+  }
+
+  function getRainGustTableHeaderRow(fixedCities) {
+    const fixedRowsCount = fixedCities.length || 6;
+    return 6 + fixedRowsCount + 2;
+  }
+
+  function writeDynamicRainGustTable(ws, items, fixedCitySet, reportCitySet, headerRow, dataBorder, currentDate, options = {}) {
+    const headers = ['Дата', 'Город', options.valueHeader || 'Осадки/Порывы', ''];
+    const dataStartRow = headerRow + 1;
+    const maxRows = Math.max(1, items.length);
+    const lastDataRow = dataStartRow + maxRows - 1;
+    const rawStartRow = dataStartRow;
+    const rawLastRow = rawStartRow + Math.max(0, items.length - 1);
+    const fixedLastRow = 6 + (options.fixedRowsCount || 1);
+    const fixedRange = `$A$7:$A$${fixedLastRow}`;
+
+    headers.forEach((header, index) => {
+      const cell = ws.getCell(headerRow, index + 1);
+      cell.value = header;
+      cell.border = dataBorder;
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF8FAFC' }
+      };
+      cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF111827' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    items.forEach((item, index) => {
+      const row = rawStartRow + index;
+
+      ws.getCell(row, 8).value = item.dayDate || makeExcelDateFromForecastDay(item.day, item.dayIndex);
+      ws.getCell(row, 8).numFmt = 'dd.mm.yyyy';
+      ws.getCell(row, 9).value = item.city;
+      ws.getCell(row, 10).value = typeof options.formatValue === 'function'
+        ? options.formatValue(item)
+        : makeRainGustListText(item.weather, item.rain, item.gust);
+      ws.getCell(row, 11).value = item.url || '';
+      ws.getCell(row, 12).value = item.rain > 5 || item.gust > 10 ? 1 : 0;
+      ws.getCell(row, 13).value = {
+        formula: `IF(COUNTA(${fixedRange})=0,1,IF(COUNTIF(${fixedRange},I${row})>0,1,0))`,
+        result: fixedCitySet
+          ? (isCityInFixedSet(item.city, fixedCitySet) ? 1 : 0)
+          : 1
+      };
+      ws.getCell(row, 14).value = {
+        formula: `IF(AND(M${row}=1,INT(H${row})=INT($F$4)),SUMPRODUCT(($M$${rawStartRow}:M${row}=1)*(INT($H$${rawStartRow}:H${row})=INT($F$4))),"")`,
+        result: initialRainGustVisible(item.city, fixedCitySet, reportCitySet) && isSameExcelDay(item.dayDate, currentDate)
+          ? initialVisibleDateIndex(items, index, fixedCitySet, currentDate)
+          : ''
+      };
+      ws.getCell(row, 15).value = isCityInFixedSet(item.city, reportCitySet) ? 1 : 0;
+    });
+
+    if (!items.length) {
+      ws.mergeCells(dataStartRow, 1, dataStartRow, 4);
+      ws.getCell(dataStartRow, 1).value = options.emptyText || 'Нет дней с осадками или порывами';
+      ws.getCell(dataStartRow, 1).font = { name: 'Arial', size: 10, color: { argb: 'FF6B7280' } };
+      ws.getCell(dataStartRow, 1).alignment = { horizontal: 'left', vertical: 'middle' };
+      ws.getCell(dataStartRow, 1).border = dataBorder;
+      return dataStartRow + 1;
+    }
+
+    for (let row = dataStartRow; row <= lastDataRow; row++) {
+      const visibleIndex = row - dataStartRow + 1;
+      const initialEntry = items
+        .map((item, index) => ({ item, index }))
+        .filter(entry =>
+          initialRainGustVisible(entry.item.city, fixedCitySet, reportCitySet) &&
+          isSameExcelDay(entry.item.dayDate, currentDate)
+        )[visibleIndex - 1];
+      const initialItem = initialEntry?.item;
+      const initialSourceRow = initialEntry ? rawStartRow + initialEntry.index : '';
+      const matchFormula = `IFERROR(MATCH(${visibleIndex},$N$${rawStartRow}:$N$${rawLastRow},0)+${rawStartRow - 1},"")`;
+
+      ws.getCell(row, 7).value = { formula: matchFormula, result: initialSourceRow };
+      ws.getCell(row, 1).value = {
+        formula: `IF($G${row}="","",INDEX($H:$H,$G${row}))`,
+        result: initialItem?.dayDate || ''
+      };
+      ws.getCell(row, 2).value = {
+        formula: `IF($G${row}="","",INDEX($I:$I,$G${row}))`,
+        result: initialItem?.city || ''
+      };
+      ws.getCell(row, 3).value = {
+        formula: `IF($G${row}="","",INDEX($J:$J,$G${row}))`,
+        result: initialItem
+          ? (typeof options.formatValue === 'function'
+            ? options.formatValue(initialItem)
+            : makeRainGustListText(initialItem.weather, initialItem.rain, initialItem.gust))
+          : ''
+      };
+      ws.getCell(row, 4).value = {
+        formula: `IF($G${row}="","",HYPERLINK(INDEX($K:$K,$G${row}),"🔗"))`,
+        result: initialItem?.url ? '🔗' : ''
+      };
+
+      const dayDate = initialItem?.dayDate || null;
+
+      for (let c = 1; c <= 4; c++) {
+        const cell = ws.getCell(row, c);
+        cell.border = initialItem ? dataBorder : {};
+        if (c === 1) {
+          cell.numFmt = 'dd.mm.yyyy';
+        }
+        cell.font = {
+          name: c === 4 ? 'Segoe UI Emoji' : 'Arial',
+          size: c === 4 ? 12 : 10,
+          underline: false,
+          color: { argb: c === 4 ? 'FF0563C1' : 'FF000000' }
+        };
+        cell.alignment = {
+          horizontal: 'center',
+          vertical: 'middle'
+        };
+        if (initialItem) {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: row % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC' }
+          };
+        }
+      }
+
+      ws.getRow(row).hidden = false;
+    }
+
+    if (typeof ws.addConditionalFormatting === 'function') {
+      ws.addConditionalFormatting({
+        ref: `A${dataStartRow}:D${lastDataRow}`,
+        rules: [
+          {
+            type: 'expression',
+            formulae: [`$B${dataStartRow}<>""`],
+            style: {
+              border: {
+                top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+                right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+              }
+            }
+          }
+        ]
+      });
+      ws.addConditionalFormatting({
+        ref: `C${dataStartRow}:C${lastDataRow}`,
+        rules: [
+          {
+            type: 'expression',
+            formulae: [`AND($G${dataStartRow}<>"",INDEX($L:$L,$G${dataStartRow})=1)`],
+            style: {
+              fill: {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFFFD6D6' },
+                bgColor: { argb: 'FFFFD6D6' }
+              }
+            }
+          }
+        ]
+      });
+    }
+
+    return lastDataRow + 1;
+  }
+
+  function initialVisibleIndex(items, currentIndex, fixedCitySet) {
+    let count = 0;
+
+    for (let index = 0; index <= currentIndex; index++) {
+      const item = items[index];
+
+      if (!fixedCitySet || isCityInFixedSet(item.city, fixedCitySet)) {
+        count += 1;
+      }
+    }
+
+    return count;
+  }
+
+  function initialVisibleDateIndex(items, currentIndex, fixedCitySet, currentDate) {
+    let count = 0;
+
+    for (let index = 0; index <= currentIndex; index++) {
+      const item = items[index];
+
+      if (
+        (!fixedCitySet || isCityInFixedSet(item.city, fixedCitySet)) &&
+        isSameExcelDay(item.dayDate, currentDate)
+      ) {
+        count += 1;
+      }
+    }
+
+    return count;
   }
 
   function writeListTable(ws, items, headerRow, dataBorder, withFilter, currentDate, options = {}) {
@@ -1552,7 +1850,8 @@
           pattern: 'solid',
           fgColor: {
             argb: c === 3
-              ? options.valueFill || 'FFFFD6D6'
+              ? (typeof options.getValueFill === 'function' ? options.getValueFill(item) : options.valueFill) ||
+                (row % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC')
               : row % 2 === 0
                 ? 'FFFFFFFF'
                 : 'FFF8FAFC'
@@ -1588,6 +1887,150 @@
     return text ? `${text}, ${value}` : value;
   }
 
+  function makeRainGustListText(weather, rain, gust) {
+    const text = cleanWeatherText(weather || '').toLowerCase();
+    const value = `${formatRain(rain)} мм, ${formatWind(gust)} м/с`;
+
+    return text ? `${text}, ${value}` : value;
+  }
+
+  function writeRainGustDatePicker(ws, osadkiDays, currentDay, dataBorder) {
+    const dates = (osadkiDays?.length ? osadkiDays : buildDates())
+      .map((day, index) => makeExcelDateFromForecastDay(day, index))
+      .filter(Boolean);
+    const currentDate = makeExcelDateFromForecastDay(currentDay, 0) || dates[0] || null;
+
+    const dateCell = ws.getCell(4, 1);
+    dateCell.value = currentDate;
+    dateCell.numFmt = 'dd.mm.yyyy';
+    dateCell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF111827' } };
+    dateCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    dateCell.border = dataBorder;
+    dateCell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFF8FAFC' }
+    };
+
+    dates.forEach((date, index) => {
+      const row = index + 5;
+      const cell = ws.getCell(row, 16);
+      cell.value = date;
+      cell.numFmt = 'dd.mm.yyyy';
+    });
+
+    if (dates.length) {
+      dateCell.dataValidation = {
+        type: 'list',
+        allowBlank: false,
+        formulae: [`$P$5:$P$${dates.length + 4}`]
+      };
+    }
+  }
+
+  function writeFixedCityBox(ws, fixedCities, dataBorder) {
+    ws.mergeCells(6, 1, 6, 3);
+    ws.getCell(6, 1).value = 'Фиксированный список';
+    ws.getCell(6, 1).font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF111827' } };
+    ws.getCell(6, 1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+    for (let col = 1; col <= 3; col++) {
+      ws.getCell(6, col).border = dataBorder;
+    }
+
+    const list = fixedCities.map(city => cleanCityName(city)).filter(Boolean);
+    const rowsCount = list.length || 6;
+
+    for (let index = 0; index < rowsCount; index++) {
+      const row = index + 7;
+      ws.mergeCells(row, 1, row, 3);
+      const cell = ws.getCell(row, 1);
+      cell.value = list[index] || '';
+      cell.font = { name: 'Arial', size: 10, color: { argb: 'FF111827' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+      for (let col = 1; col <= 3; col++) {
+        ws.getCell(row, col).border = dataBorder;
+      }
+    }
+  }
+
+  function buildFixedCitySet(fixedCities) {
+    const normalized = fixedCities
+      .map(city => normalizeLocation(city))
+      .filter(Boolean);
+
+    return normalized.length ? new Set(normalized) : null;
+  }
+
+  function mergeCitySets(...sets) {
+    const merged = new Set();
+
+    sets.filter(Boolean).forEach(set => {
+      set.forEach(value => merged.add(value));
+    });
+
+    return merged.size ? merged : null;
+  }
+
+  function initialRainGustVisible(city, fixedCitySet, reportCitySet) {
+    return fixedCitySet
+      ? isCityInFixedSet(city, fixedCitySet)
+      : true;
+  }
+
+  function buildFixedCityOrderMap(fixedCities) {
+    const order = new Map();
+
+    fixedCities.forEach((city, index) => {
+      const normalized = normalizeLocation(city);
+
+      if (normalized && !order.has(normalized)) {
+        order.set(normalized, index);
+      }
+    });
+
+    return order.size ? order : null;
+  }
+
+  function getFixedCityOrder(city, fixedCityOrder) {
+    if (!fixedCityOrder) return Number.MAX_SAFE_INTEGER;
+
+    const normalized = normalizeLocation(city);
+
+    if (fixedCityOrder.has(normalized)) return fixedCityOrder.get(normalized);
+
+    for (const [item, order] of fixedCityOrder.entries()) {
+      if (
+        normalized === item ||
+        normalized.startsWith(`${item} `) ||
+        normalized.startsWith(`${item}-`) ||
+        item.startsWith(`${normalized} `) ||
+        item.startsWith(`${normalized}-`)
+      ) {
+        return order;
+      }
+    }
+
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  function isCityInFixedSet(city, fixedCitySet) {
+    if (!fixedCitySet) return true;
+
+    const normalized = normalizeLocation(city);
+
+    if (fixedCitySet.has(normalized)) return true;
+
+    return [...fixedCitySet].some(item =>
+      normalized === item ||
+      normalized.startsWith(`${item} `) ||
+      normalized.startsWith(`${item}-`) ||
+      item.startsWith(`${normalized} `) ||
+      item.startsWith(`${normalized}-`)
+    );
+  }
+
   function formatShortDate(day, fallbackIndex = 0) {
     const date = makeExcelDateFromForecastDay(day, fallbackIndex);
 
@@ -1600,11 +2043,13 @@
     ].join('.');
   }
 
-  function buildStrongRainRows(blocks, osadkiDays) {
+  function buildStrongRainRows(blocks, osadkiDays, citySet = null) {
     const items = [];
     const fallbackDays = buildDates();
 
     for (const block of blocks) {
+      if (!isCityInFixedSet(block.city, citySet)) continue;
+
       for (let dayIndex = 0; dayIndex < 10; dayIndex++) {
         const rain = Number(block.rain[dayIndex]);
 
@@ -1634,15 +2079,20 @@
     );
   }
 
-  function buildStrongGustRows(blocks, osadkiDays) {
+  function buildRainGustRows(blocks, osadkiDays, fixedCitySet = null, fixedCityOrder = null) {
     const items = [];
     const fallbackDays = buildDates();
 
     for (const block of blocks) {
-      for (let dayIndex = 0; dayIndex < 10; dayIndex++) {
-        const gust = Number(block.gust?.[dayIndex]);
+      if (!isCityInFixedSet(block.city, fixedCitySet)) continue;
 
-        if (!Number.isFinite(gust) || gust <= 10) continue;
+      for (let dayIndex = 0; dayIndex < 10; dayIndex++) {
+        const rain = Number(block.rain?.[dayIndex]);
+        const gust = Number(block.gust?.[dayIndex]);
+        const hasRain = Number.isFinite(rain) && rain > 0;
+        const hasGust = Number.isFinite(gust) && gust > 0;
+
+        if (!hasRain && !hasGust) continue;
 
         const day = osadkiDays?.[dayIndex] || block.days?.[dayIndex] || fallbackDays[dayIndex];
         const dayDate = makeExcelDateFromForecastDay(day, dayIndex);
@@ -1654,7 +2104,8 @@
           dateText,
           sortKey: dayDate ? dayDate.getTime() : Number.MAX_SAFE_INTEGER + dayIndex,
           city: block.city,
-          gust,
+          rain: Number.isFinite(rain) ? rain : 0,
+          gust: Number.isFinite(gust) ? gust : 0,
           weather: block.weather?.[dayIndex] || '',
           url: block.url,
           dayIndex
@@ -1664,6 +2115,7 @@
 
     return items.sort((a, b) =>
       a.sortKey - b.sortKey ||
+      getFixedCityOrder(a.city, fixedCityOrder) - getFixedCityOrder(b.city, fixedCityOrder) ||
       String(a.city).localeCompare(String(b.city), 'ru')
     );
   }
