@@ -1,5 +1,11 @@
 # Gismeteo Precipitation
 
+<p align="center">
+  <a href="https://gromov341112-gif.github.io/Gismeteo/">
+    <img src="https://img.shields.io/badge/Установить-Gismeteo%20Precipitation-2ea44f?style=for-the-badge" alt="Установить">
+  </a>
+</p>
+
 Текущая версия: `2.3`
 
 ## Возможности
