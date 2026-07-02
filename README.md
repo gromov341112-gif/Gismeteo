@@ -1,14 +1,16 @@
-# Gismeteo Precipitation
+# 🌦️ Gismeteo Precipitation
 
 <p align="center">
   <a href="https://gromov341112-gif.github.io/Gismeteo/">
-    <img src="https://img.shields.io/badge/Установить-Gismeteo%20Precipitation-2ea44f?style=for-the-badge" alt="Установить">
+    <img src="https://img.shields.io/badge/Установить-28a745?style=for-the-badge" alt="Установить">
   </a>
 </p>
 
-Текущая версия: `2.3`
+<p align="center">
+  <b>Текущая версия:</b> <code>2.3</code>
+</p>
 
-## Возможности
+## ✨ Возможности
 
 * Точный поиск городов без подмены на похожие локации.
 * Сбор 10-дневного прогноза с Gismeteo.
